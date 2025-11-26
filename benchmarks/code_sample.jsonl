@@ -1,0 +1,1 @@
+{"question":"What is the output of this code?\\n\\nprint(sum([i for i in range(5)]))","answer":"10","verifier_kind":"contains","verifier_spec":{"text":"10"}}

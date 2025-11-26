@@ -1,0 +1,13 @@
+pyyaml
+sympy
+pytest
+llama-cpp-python
+requests
+sentence-transformers
+faiss-cpu
+httpx
+transformers
+datasets
+peft
+accelerate
+bitsandbytes
