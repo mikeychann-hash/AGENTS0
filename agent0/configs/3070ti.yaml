@@ -1,3 +1,11 @@
+# ============================================
+# LOCAL DEVELOPMENT CONFIGURATION
+# ============================================
+# WARNING: No sandboxing or isolation!
+# Code runs directly on your machine.
+# Only use with trusted tasks.
+# ============================================
+
 # 3070 Ti-friendly defaults (8 GB VRAM target).
 models:
   teacher:
@@ -24,17 +32,14 @@ resources:
   max_tokens_per_task: 512
 
 tooling:
+  # LOCAL MODE: Limited tools for safety
   enable_python: true
-  enable_shell: true
+  enable_shell: false
   enable_math: true
-  enable_tests: true
-  timeout_seconds: 15
+  enable_tests: false
+  timeout_seconds: 30
   workdir: ./sandbox
-  allowed_shell:
-    - dir
-    - ls
-    - python
-    - pytest
+  allowed_shell: []
 
 rewards:
   weight_uncertainty: 0.5

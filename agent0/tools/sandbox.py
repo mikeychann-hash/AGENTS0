@@ -1,35 +1,26 @@
 from contextlib import contextmanager
+import logging
 
-try:
-    import resource  # type: ignore
-except ImportError:  # pragma: no cover
-    resource = None  # type: ignore
-
-try:
-    import signal
-except ImportError:  # pragma: no cover
-    signal = None  # type: ignore
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
 def limit_resources(cpu_seconds: int = 5, mem_mb: int = 512):
-    """Context manager to limit CPU time and address space (best-effort)."""
-    if resource:
-        try:
-            resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
-            mem_bytes = mem_mb * 1024 * 1024
-            resource.setrlimit(resource.RLIMIT_AS, (mem_bytes, mem_bytes))
-        except Exception:
-            pass
+    """
+    LOCAL DEVELOPMENT MODE: No resource limits enforced.
+
+    This is a no-op context manager for local development. Code runs directly on
+    your machine with no isolation or resource limits. Only run trusted code.
+    """
+    logger.warning("Running in local mode - NO RESOURCE LIMITS OR ISOLATION")
     yield
 
 
 def install_timeout(seconds: int = 10):
-    if not signal:
-        return
+    """
+    LOCAL DEVELOPMENT MODE: No timeout enforcement.
 
-    def _handle_timeout(signum, frame):  # noqa: ANN001, D401
-        raise TimeoutError("execution timed out")
-
-    signal.signal(signal.SIGALRM, _handle_timeout)
-    signal.alarm(seconds)
+    This is a no-op function for local development.
+    """
+    logger.warning("Running in local mode - NO TIMEOUT ENFORCEMENT")
+    pass

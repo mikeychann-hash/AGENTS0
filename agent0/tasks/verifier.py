@@ -17,9 +17,15 @@ def verify(task: TaskSpec, candidate: str) -> Dict[str, str]:
     spec = task.verifier.spec
 
     if kind == "expected_number":
-        expected = str(spec.get("answer"))
-        ok = expected == str(candidate).strip()
-        return {"status": "pass" if ok else "fail", "detail": f"expected {expected}, got {candidate}"}
+        expected_raw = spec.get("answer")
+        expected_str = str(expected_raw)
+        cand_str = str(candidate).strip()
+        ok = False
+        try:
+            ok = abs(float(cand_str) - float(expected_raw)) < 1e-6
+        except Exception:
+            ok = expected_str == cand_str
+        return {"status": "pass" if ok else "fail", "detail": f"expected {expected_str}, got {candidate}"}
 
     if kind == "python_assert":
         code = spec.get("code", "")

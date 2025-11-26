@@ -1,0 +1,84 @@
+[LOCAL MODE] 2025-11-25 21:50:53 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:50:53 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-25 21:50:53 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-25 21:50:53 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-25 21:50:53 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:51:01 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 21:51:05 | ERROR | agent0.loop.coordinator | Iteration failed: Extra data: line 2 column 1 (char 97)
+Traceback (most recent call last):
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\site-packages\requests\models.py", line 965, in json
+    return complexjson.loads(self.content.decode(encoding), **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py", line 341, in decode
+    raise JSONDecodeError("Extra data", s, end)
+json.decoder.JSONDecodeError: Extra data: line 2 column 1 (char 97)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Admin\Desktop\AGENTS0\agent0\loop\coordinator.py", line 72, in run_once
+    task = self.teacher.generate_task(signal)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\Desktop\AGENTS0\agent0\agents\teacher.py", line 45, in generate_task
+    raw = self.model.generate(TEACHER_PROMPT, max_tokens=64, temperature=self.model_config.get("temperature", 0.7))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\Desktop\AGENTS0\agent0\models\ollama_client.py", line 36, in generate
+    data = resp.json()
+           ^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\site-packages\requests\models.py", line 973, in json
+    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+requests.exceptions.JSONDecodeError: Extra data: line 2 column 1 (char 97)
+[LOCAL MODE] 2025-11-25 21:51:05 | ERROR | agent0.loop.coordinator | Check sandbox directory for any generated files.
+[LOCAL MODE] 2025-11-25 21:51:05 | ERROR | agent0 | Smoke test failed to produce a trajectory. Check earlier errors and sandbox artifacts.
+[LOCAL MODE] 2025-11-25 21:52:08 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:52:08 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-25 21:52:08 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-25 21:52:08 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-25 21:52:08 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:52:16 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 21:52:35 | ERROR | agent0.loop.coordinator | Iteration failed: Object of type VerifierSpec is not JSON serializable
+Traceback (most recent call last):
+  File "C:\Users\Admin\Desktop\AGENTS0\agent0\loop\coordinator.py", line 101, in run_once
+    self._log_trajectory(traj)
+  File "C:\Users\Admin\Desktop\AGENTS0\agent0\loop\coordinator.py", line 66, in _log_trajectory
+    f.write(json.dumps(data) + "\n")
+            ^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py", line 231, in dumps
+    return _default_encoder.encode(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+TypeError: Object of type VerifierSpec is not JSON serializable
+[LOCAL MODE] 2025-11-25 21:52:35 | ERROR | agent0.loop.coordinator | Check sandbox directory for any generated files.
+[LOCAL MODE] 2025-11-25 21:52:35 | ERROR | agent0 | Smoke test failed to produce a trajectory. Check earlier errors and sandbox artifacts.
+[LOCAL MODE] 2025-11-25 21:52:49 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:52:49 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-25 21:52:49 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-25 21:52:49 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-25 21:52:49 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:52:57 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:18:42 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 22:18:42 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-25 22:18:42 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-25 22:18:42 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-25 22:18:42 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 22:18:50 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:19:39 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 22:19:39 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-25 22:19:39 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-25 22:19:39 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-25 22:19:39 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 22:19:46 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:19:59 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:20:12 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:20:23 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:20:35 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)

@@ -24,7 +24,7 @@ class UncertaintyEstimator:
         )
 
     def _extract_prob(self, text: str) -> float:
-        match = re.search(r"0(?:\\.\\d+)?|1(?:\\.0+)?", text)
+        match = re.search(r"0(?:\.\d+)?|1(?:\.0+)?", text)
         if not match:
             return 0.5
         try:

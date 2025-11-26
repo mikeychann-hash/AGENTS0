@@ -25,7 +25,7 @@ class StudentAgent:
         self.last_llm_tools: List[dict] = []
 
     def _extract_number(self, text: str) -> Optional[str]:
-        match = re.search(r"[-+]?\\d+(?:\\.\\d+)?", text)
+        match = re.search(r"[-+]?\d+(?:\.\d+)?", text)
         return match.group(0) if match else None
 
     def _llm_guess(self, task: TaskSpec) -> Optional[str]:

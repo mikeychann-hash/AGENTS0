@@ -26,6 +26,7 @@ class OllamaModel(BaseModel):
         payload = {
             "model": self.model,
             "prompt": prompt,
+            "stream": False,
             "options": {"temperature": temperature, "top_p": top_p, "num_predict": max_tokens},
         }
         if stop:

@@ -1,0 +1,406 @@
+[LOCAL MODE] 2025-11-25 21:50:53 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:50:53 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-25 21:50:53 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-25 21:50:53 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-25 21:50:53 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:50:53 | INFO | agent0 | Loaded config: {
+  "models": {
+    "teacher": {
+      "backend": "ollama",
+      "model": "qwen2.5:3b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 4096,
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    },
+    "student": {
+      "backend": "ollama",
+      "model": "qwen2.5:7b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 8192,
+      "temperature": 0.6,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    }
+  },
+  "resources": {
+    "device": "cuda",
+    "max_gpu_memory_gb": 8,
+    "num_threads": 6,
+    "max_tokens_per_task": 512
+  },
+  "tooling": {
+    "enable_python": true,
+    "enable_shell": false,
+    "enable_math": true,
+    "enable_tests": false,
+    "timeout_seconds": 30,
+    "workdir": "./sandbox",
+    "allowed_shell": []
+  },
+  "rewards": {
+    "weight_uncertainty": 0.5,
+    "weight_tool_use": 0.3,
+    "weight_novelty": 0.2,
+    "target_success_rate": 0.5,
+    "repetition_similarity_threshold": 0.9
+  },
+  "logging": {
+    "base_dir": "./runs",
+    "save_every": 10,
+    "flush_every": 1
+  },
+  "router": {
+    "enable": true,
+    "cloud_confidence_threshold": 0.7,
+    "local_confidence_threshold": 0.4,
+    "cache_path": "./runs/router_cache.json",
+    "cloud_command": ""
+  },
+  "embedding": {
+    "use_transformer": true,
+    "model_name": "all-MiniLM-L6-v2"
+  }
+}
+[LOCAL MODE] 2025-11-25 21:51:01 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 21:51:05 | ERROR | agent0.loop.coordinator | Iteration failed: Extra data: line 2 column 1 (char 97)
+Traceback (most recent call last):
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\site-packages\requests\models.py", line 965, in json
+    return complexjson.loads(self.content.decode(encoding), **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py", line 341, in decode
+    raise JSONDecodeError("Extra data", s, end)
+json.decoder.JSONDecodeError: Extra data: line 2 column 1 (char 97)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Admin\Desktop\AGENTS0\agent0\loop\coordinator.py", line 72, in run_once
+    task = self.teacher.generate_task(signal)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\Desktop\AGENTS0\agent0\agents\teacher.py", line 45, in generate_task
+    raw = self.model.generate(TEACHER_PROMPT, max_tokens=64, temperature=self.model_config.get("temperature", 0.7))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\Desktop\AGENTS0\agent0\models\ollama_client.py", line 36, in generate
+    data = resp.json()
+           ^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\site-packages\requests\models.py", line 973, in json
+    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+requests.exceptions.JSONDecodeError: Extra data: line 2 column 1 (char 97)
+[LOCAL MODE] 2025-11-25 21:51:05 | ERROR | agent0.loop.coordinator | Check sandbox directory for any generated files.
+[LOCAL MODE] 2025-11-25 21:51:05 | ERROR | agent0 | Smoke test failed to produce a trajectory. Check earlier errors and sandbox artifacts.
+[LOCAL MODE] 2025-11-25 21:52:08 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:52:08 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-25 21:52:08 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-25 21:52:08 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-25 21:52:08 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:52:08 | INFO | agent0 | Loaded config: {
+  "models": {
+    "teacher": {
+      "backend": "ollama",
+      "model": "qwen2.5:3b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 4096,
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    },
+    "student": {
+      "backend": "ollama",
+      "model": "qwen2.5:7b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 8192,
+      "temperature": 0.6,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    }
+  },
+  "resources": {
+    "device": "cuda",
+    "max_gpu_memory_gb": 8,
+    "num_threads": 6,
+    "max_tokens_per_task": 512
+  },
+  "tooling": {
+    "enable_python": true,
+    "enable_shell": false,
+    "enable_math": true,
+    "enable_tests": false,
+    "timeout_seconds": 30,
+    "workdir": "./sandbox",
+    "allowed_shell": []
+  },
+  "rewards": {
+    "weight_uncertainty": 0.5,
+    "weight_tool_use": 0.3,
+    "weight_novelty": 0.2,
+    "target_success_rate": 0.5,
+    "repetition_similarity_threshold": 0.9
+  },
+  "logging": {
+    "base_dir": "./runs",
+    "save_every": 10,
+    "flush_every": 1
+  },
+  "router": {
+    "enable": true,
+    "cloud_confidence_threshold": 0.7,
+    "local_confidence_threshold": 0.4,
+    "cache_path": "./runs/router_cache.json",
+    "cloud_command": ""
+  },
+  "embedding": {
+    "use_transformer": true,
+    "model_name": "all-MiniLM-L6-v2"
+  }
+}
+[LOCAL MODE] 2025-11-25 21:52:16 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 21:52:17 | INFO | agent0.loop.coordinator | Generated task: Solve for x: 2x + 7 = 14.
+[LOCAL MODE] 2025-11-25 21:52:35 | ERROR | agent0.loop.coordinator | Iteration failed: Object of type VerifierSpec is not JSON serializable
+Traceback (most recent call last):
+  File "C:\Users\Admin\Desktop\AGENTS0\agent0\loop\coordinator.py", line 101, in run_once
+    self._log_trajectory(traj)
+  File "C:\Users\Admin\Desktop\AGENTS0\agent0\loop\coordinator.py", line 66, in _log_trajectory
+    f.write(json.dumps(data) + "\n")
+            ^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py", line 231, in dumps
+    return _default_encoder.encode(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python312\Lib\json\encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+TypeError: Object of type VerifierSpec is not JSON serializable
+[LOCAL MODE] 2025-11-25 21:52:35 | ERROR | agent0.loop.coordinator | Check sandbox directory for any generated files.
+[LOCAL MODE] 2025-11-25 21:52:35 | ERROR | agent0 | Smoke test failed to produce a trajectory. Check earlier errors and sandbox artifacts.
+[LOCAL MODE] 2025-11-25 21:52:49 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:52:49 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-25 21:52:49 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-25 21:52:49 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-25 21:52:49 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 21:52:49 | INFO | agent0 | Loaded config: {
+  "models": {
+    "teacher": {
+      "backend": "ollama",
+      "model": "qwen2.5:3b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 4096,
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    },
+    "student": {
+      "backend": "ollama",
+      "model": "qwen2.5:7b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 8192,
+      "temperature": 0.6,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    }
+  },
+  "resources": {
+    "device": "cuda",
+    "max_gpu_memory_gb": 8,
+    "num_threads": 6,
+    "max_tokens_per_task": 512
+  },
+  "tooling": {
+    "enable_python": true,
+    "enable_shell": false,
+    "enable_math": true,
+    "enable_tests": false,
+    "timeout_seconds": 30,
+    "workdir": "./sandbox",
+    "allowed_shell": []
+  },
+  "rewards": {
+    "weight_uncertainty": 0.5,
+    "weight_tool_use": 0.3,
+    "weight_novelty": 0.2,
+    "target_success_rate": 0.5,
+    "repetition_similarity_threshold": 0.9
+  },
+  "logging": {
+    "base_dir": "./runs",
+    "save_every": 10,
+    "flush_every": 1
+  },
+  "router": {
+    "enable": true,
+    "cloud_confidence_threshold": 0.7,
+    "local_confidence_threshold": 0.4,
+    "cache_path": "./runs/router_cache.json",
+    "cloud_command": ""
+  },
+  "embedding": {
+    "use_transformer": true,
+    "model_name": "all-MiniLM-L6-v2"
+  }
+}
+[LOCAL MODE] 2025-11-25 21:52:57 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 21:53:00 | INFO | agent0.loop.coordinator | Generated task: Solve for x: 2x + 5 = 17.
+[LOCAL MODE] 2025-11-25 21:53:10 | INFO | agent0.loop.coordinator | Task completed: success=False reward=-0.435
+[LOCAL MODE] 2025-11-25 21:53:10 | INFO | agent0 | Trajectory success=False reward={'uncertainty': -0.44999999999999984, 'tool_use': -0.2, 'novelty': 0.0, 'correctness': -0.5, 'total': -0.43499999999999994} route=cloud cloud=False
+[LOCAL MODE] 2025-11-25 22:18:42 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 22:18:42 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-25 22:18:42 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-25 22:18:42 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-25 22:18:42 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 22:18:42 | INFO | agent0 | Loaded config: {
+  "models": {
+    "teacher": {
+      "backend": "ollama",
+      "model": "qwen2.5:3b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 4096,
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    },
+    "student": {
+      "backend": "ollama",
+      "model": "qwen2.5:7b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 8192,
+      "temperature": 0.6,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    }
+  },
+  "resources": {
+    "device": "cuda",
+    "max_gpu_memory_gb": 8,
+    "num_threads": 6,
+    "max_tokens_per_task": 512
+  },
+  "tooling": {
+    "enable_python": true,
+    "enable_shell": false,
+    "enable_math": true,
+    "enable_tests": false,
+    "timeout_seconds": 30,
+    "workdir": "./sandbox",
+    "allowed_shell": []
+  },
+  "rewards": {
+    "weight_uncertainty": 0.5,
+    "weight_tool_use": 0.3,
+    "weight_novelty": 0.2,
+    "target_success_rate": 0.5,
+    "repetition_similarity_threshold": 0.9
+  },
+  "logging": {
+    "base_dir": "./runs",
+    "save_every": 10,
+    "flush_every": 1
+  },
+  "router": {
+    "enable": true,
+    "cloud_confidence_threshold": 0.7,
+    "local_confidence_threshold": 0.4,
+    "cache_path": "./runs/router_cache.json",
+    "cloud_command": ""
+  },
+  "embedding": {
+    "use_transformer": true,
+    "model_name": "all-MiniLM-L6-v2"
+  }
+}
+[LOCAL MODE] 2025-11-25 22:18:50 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:18:52 | INFO | agent0.loop.coordinator | Generated task: Solve for x: 2x + 5 = 17.
+[LOCAL MODE] 2025-11-25 22:19:03 | INFO | agent0.loop.coordinator | Task completed: success=True reward=0.015
+[LOCAL MODE] 2025-11-25 22:19:03 | INFO | agent0 | Trajectory success=True reward={'uncertainty': -0.44999999999999984, 'tool_use': -0.2, 'novelty': 0.0, 'correctness': 1.0, 'total': 0.015000000000000069} route=cloud cloud=False
+[LOCAL MODE] 2025-11-25 22:19:39 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 22:19:39 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-25 22:19:39 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-25 22:19:39 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-25 22:19:39 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-25 22:19:39 | INFO | agent0 | Loaded config: {
+  "models": {
+    "teacher": {
+      "backend": "ollama",
+      "model": "qwen2.5:3b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 4096,
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    },
+    "student": {
+      "backend": "ollama",
+      "model": "qwen2.5:7b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 8192,
+      "temperature": 0.6,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    }
+  },
+  "resources": {
+    "device": "cuda",
+    "max_gpu_memory_gb": 8,
+    "num_threads": 6,
+    "max_tokens_per_task": 512
+  },
+  "tooling": {
+    "enable_python": true,
+    "enable_shell": false,
+    "enable_math": true,
+    "enable_tests": false,
+    "timeout_seconds": 30,
+    "workdir": "./sandbox",
+    "allowed_shell": []
+  },
+  "rewards": {
+    "weight_uncertainty": 0.5,
+    "weight_tool_use": 0.3,
+    "weight_novelty": 0.2,
+    "target_success_rate": 0.5,
+    "repetition_similarity_threshold": 0.9
+  },
+  "logging": {
+    "base_dir": "./runs",
+    "save_every": 10,
+    "flush_every": 1
+  },
+  "router": {
+    "enable": true,
+    "cloud_confidence_threshold": 0.7,
+    "local_confidence_threshold": 0.4,
+    "cache_path": "./runs/router_cache.json",
+    "cloud_command": ""
+  },
+  "embedding": {
+    "use_transformer": true,
+    "model_name": "all-MiniLM-L6-v2"
+  }
+}
+[LOCAL MODE] 2025-11-25 22:19:46 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:19:49 | INFO | agent0.loop.coordinator | Generated task: Solve for x: 2x + 5 = 17.
+[LOCAL MODE] 2025-11-25 22:19:59 | INFO | agent0.loop.coordinator | Task completed: success=True reward=0.015
+[LOCAL MODE] 2025-11-25 22:19:59 | INFO | agent0 | Step task-0000: success=True reward={'uncertainty': -0.44999999999999984, 'tool_use': -0.2, 'novelty': 0.0, 'correctness': 1.0, 'total': 0.015000000000000069} route=cloud cloud=False
+[LOCAL MODE] 2025-11-25 22:19:59 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:20:02 | INFO | agent0.loop.coordinator | Generated task: Solve for x: 2x + 5 = 17.
+[LOCAL MODE] 2025-11-25 22:20:12 | INFO | agent0.loop.coordinator | Task completed: success=True reward=-0.293
+[LOCAL MODE] 2025-11-25 22:20:12 | INFO | agent0 | Step task-0001: success=True reward={'uncertainty': -0.4666666666666667, 'tool_use': -0.2, 'novelty': -1.5, 'correctness': 1.0, 'total': -0.2933333333333334} route=cloud cloud=False
+[LOCAL MODE] 2025-11-25 22:20:12 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:20:15 | INFO | agent0.loop.coordinator | Generated task: Solve for x: 2x + 5 = 17.
+[LOCAL MODE] 2025-11-25 22:20:23 | INFO | agent0.loop.coordinator | Task completed: success=True reward=-0.285
+[LOCAL MODE] 2025-11-25 22:20:23 | INFO | agent0 | Step task-0002: success=True reward={'uncertainty': -0.44999999999999984, 'tool_use': -0.2, 'novelty': -1.5, 'correctness': 1.0, 'total': -0.285} route=cloud cloud=False
+[LOCAL MODE] 2025-11-25 22:20:23 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:20:26 | INFO | agent0.loop.coordinator | Generated task: Solve for x: 2x + 5 = 17.
+[LOCAL MODE] 2025-11-25 22:20:35 | INFO | agent0.loop.coordinator | Task completed: success=True reward=-0.293
+[LOCAL MODE] 2025-11-25 22:20:35 | INFO | agent0 | Step task-0003: success=True reward={'uncertainty': -0.4666666666666667, 'tool_use': -0.2, 'novelty': -1.5, 'correctness': 1.0, 'total': -0.2933333333333334} route=cloud cloud=False
+[LOCAL MODE] 2025-11-25 22:20:35 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-25 22:20:37 | INFO | agent0.loop.coordinator | Generated task: Solve for x: 2x + 5 = 17.
+[LOCAL MODE] 2025-11-25 22:20:46 | INFO | agent0.loop.coordinator | Task completed: success=True reward=-0.285
+[LOCAL MODE] 2025-11-25 22:20:46 | INFO | agent0 | Step task-0004: success=True reward={'uncertainty': -0.44999999999999984, 'tool_use': -0.2, 'novelty': -1.5, 'correctness': 1.0, 'total': -0.285} route=cloud cloud=False

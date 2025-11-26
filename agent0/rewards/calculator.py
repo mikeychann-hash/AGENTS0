@@ -54,16 +54,19 @@ class RewardCalculator:
         r_nov = self._novelty_penalty(novelty_sig)
         if similarity is not None and similarity > self.weights.repetition_similarity_threshold:
             r_nov -= 0.5
+        r_correct = 1.0 if trajectory.success else -0.5
 
         total = (
             self.weights.weight_uncertainty * r_unc
             + self.weights.weight_tool_use * r_tool
             + self.weights.weight_novelty * r_nov
+            + 0.3 * r_correct
         )
 
         return {
             "uncertainty": r_unc,
             "tool_use": r_tool,
             "novelty": r_nov,
+            "correctness": r_correct,
             "total": total,
         }
