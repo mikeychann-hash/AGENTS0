@@ -1,10 +1,10 @@
 1. Repo status (practical reality check)
 
-Local fork (this workspace)
-- Code scaffold implemented: teacher/student agents, co-evolution loop, rewards, verifier, tool runners, logging.
+Local fork (this workspace) – LOCAL MODE, NO SANDBOX
+- Teacher/student agents, co-evolution loop, rewards (uncertainty/tool/novelty + correctness), verifier, logging.
 - Models wired via Ollama: teacher `qwen2.5:3b`, student `qwen2.5:7b` (see `agent0/configs/3070ti.yaml`).
-- Tool sandboxing (workdir, allowlists, time/mem limits), domain-specific ReAct prompts (math/logic/code), router stub + caching, PEFT (LoRA) training path over trajectories.
-- Scripts: smoke/loop runners, eval, router proxy, and PEFT trainer; trajectories log to JSONL.
+- Tools: python runner gated by code review (shell/tests disabled in config), math engine; sandbox is an explicit no-op with warnings; input validator blocks bad tasks.
+- Scripts: smoke/loop runners, monitoring (`scripts/monitor_local_execution.py`), logging with local-mode warnings; trajectories log to JSONL.
 
 Upstream GitHub (aiming-lab/Agent0)
 - Files: README.md, LICENSE, figs/, .DS_Store. No official code yet; README says “Code: Coming soon.” Community awaiting training/inference code.
@@ -22,7 +22,7 @@ Agent0 is a self-evolving agent training framework:
 - Iterative loop: tasks -> solutions -> rewards -> updates; monotonic improvements shown in paper (Qwen3-4B/8B).
 
 4. Tool-integrated reasoning
-- Tools are central: executor has code/shell/math engines; curriculum reward factors tool usage.
+- Tools are central: executor has math/python (shell disabled by default in local config); curriculum reward factors tool usage.
 
 5. Results (from paper/AIModels summaries)
 - Base: Qwen3-8B-Base. After co-evolution: +18% math (MATH, GSM8K), +24% general reasoning (ARC, HellaSwag).
@@ -39,10 +39,10 @@ Upstream:
 - Safety: curriculum can drift without constraints.
 
 Local fork status/risks:
-- Benchmarks are minimal; need full suites (MATH/GSM8K/ARC/Code) and reports.
+- Local-only, no isolation: code runs directly; sandbox is a no-op; shell/tests disabled in config.
+- Benchmarks minimal; need full suites (MATH/GSM8K/ARC/Code) and reports.
 - Router integration to cloud CLIs is basic; needs production wiring and better confidence fusion.
 - Prompts/verifiers for long-horizon coding/logic can be expanded; curriculum scheduler is simple.
 - PEFT pipeline needs transformers/peft deps and VRAM budget.
 - Uncertainty is heuristic (self-critique); logits-based calibration would be stronger.
-- Sandbox is best-effort on Windows; hard isolation (containers/VM) not included.
 - Router to cloud CLIs is stub-level; caching is in-memory only.
