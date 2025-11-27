@@ -1,0 +1,16 @@
+[
+  {
+    "task": {
+      "task_id": "f439a388-57da-4905-8cca-1556c8b8d085",
+      "description": "Write a function that returns the factorial of n.",
+      "domain": "code",
+      "difficulty": 0.5,
+      "metadata": {}
+    },
+    "result": {
+      "task_id": "f439a388-57da-4905-8cca-1556c8b8d085",
+      "solution": "{\"response\": \"print(123)\"}",
+      "tool_calls": []
+    }
+  }
+]

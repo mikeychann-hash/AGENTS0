@@ -1,0 +1,8 @@
+run_name: "default"
+num_tasks: 2
+max_attempts_per_task: 1
+logs_dir: "runs/logs"
+llm:
+  backend_type: "http"
+  model_name: "qwen2.5:7b"
+  base_url: "http://localhost:11434/api/generate"
