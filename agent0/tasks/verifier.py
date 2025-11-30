@@ -21,10 +21,23 @@ def verify(task: TaskSpec, candidate: str) -> Dict[str, str]:
         expected_str = str(expected_raw)
         cand_str = str(candidate).strip()
         ok = False
+        
         try:
-            ok = abs(float(cand_str) - float(expected_raw)) < 1e-6
-        except Exception:
-            ok = expected_str == cand_str
+            # Handle both integer and floating point comparisons
+            expected_num = float(expected_raw)
+            candidate_num = float(cand_str)
+            
+            # Use relative tolerance for floating point comparison
+            if abs(expected_num) < 1e-10:  # Very small expected value
+                ok = abs(candidate_num) < 1e-10
+            else:
+                relative_error = abs(candidate_num - expected_num) / abs(expected_num)
+                ok = relative_error < 1e-6 or abs(candidate_num - expected_num) < 1e-10
+                
+        except (ValueError, TypeError, OverflowError):
+            # Fall back to string comparison if numeric conversion fails
+            ok = expected_str.strip().lower() == cand_str.lower()
+        
         return {"status": "pass" if ok else "fail", "detail": f"expected {expected_str}, got {candidate}"}
 
     if kind == "python_assert":

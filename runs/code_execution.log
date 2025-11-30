@@ -82,3 +82,21 @@ TypeError: Object of type VerifierSpec is not JSON serializable
 [LOCAL MODE] 2025-11-25 22:20:12 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
 [LOCAL MODE] 2025-11-25 22:20:23 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
 [LOCAL MODE] 2025-11-25 22:20:35 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0.validation.config_validator | Rate limiting configuration: max_tasks_per_minute (60) * 60 > max_tasks_per_hour (1000). This may cause unexpected behavior.
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0.validation.config_validator | Rate limiting configuration: max_tasks_per_minute (30) * 60 > max_tasks_per_hour (1000). This may cause unexpected behavior.
+[LOCAL MODE] 2025-11-28 18:13:48 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-28 18:14:35 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-28 18:14:35 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-28 18:14:35 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-28 18:14:35 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-28 18:14:35 | WARNING | agent0 | ============================================================

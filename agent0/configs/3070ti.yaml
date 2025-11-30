@@ -48,6 +48,41 @@ rewards:
   target_success_rate: 0.5
   repetition_similarity_threshold: 0.9
 
+# ============================================
+# NEW: Enhanced Curriculum Scheduler
+# ============================================
+curriculum:
+  # Frontier-based domain selection (chooses domains at learning boundary)
+  enable_frontier: true
+  
+  # Target success rate (0.5 = 50% - optimal for learning)
+  target_success: 0.5
+  
+  # Acceptable range around target (0.5 +/- 0.1 = 40-60%)
+  frontier_window: 0.1
+  
+  # Domains to train on
+  domains:
+    - math
+    - logic
+    - code
+
+# ============================================
+# NEW: Self-Verification System
+# ============================================
+verification:
+  # Enable self-verification (generates multiple solutions for consensus)
+  enable: false  # Set to true to enable
+  
+  # Number of solutions to generate for voting
+  num_samples: 3
+  
+  # Minimum agreement rate to accept (0.7 = 70%)
+  confidence_threshold: 0.7
+  
+  # Add "think step by step" to verification prompts
+  enable_cot: true
+
 logging:
   base_dir: ./runs
   save_every: 10
@@ -63,3 +98,26 @@ router:
 embedding:
   use_transformer: true
   model_name: all-MiniLM-L6-v2
+
+# ============================================
+# NEW: Security and Rate Limiting
+# ============================================
+rate_limiting:
+  # Maximum tasks per minute (prevents abuse)
+  max_tasks_per_minute: 30
+  
+  # Maximum tasks per hour (prevents long-term abuse)
+  max_tasks_per_hour: 1000
+
+# ============================================
+# NEW: Resource Limits
+# ============================================
+resource_limits:
+  # Maximum memory usage per task (MB)
+  max_memory_mb: 512
+  
+  # Maximum CPU time per task (seconds)
+  max_cpu_seconds: 30
+  
+  # Maximum output size per task (KB)
+  max_output_kb: 100

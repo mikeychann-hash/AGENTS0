@@ -404,3 +404,200 @@ TypeError: Object of type VerifierSpec is not JSON serializable
 [LOCAL MODE] 2025-11-25 22:20:37 | INFO | agent0.loop.coordinator | Generated task: Solve for x: 2x + 5 = 17.
 [LOCAL MODE] 2025-11-25 22:20:46 | INFO | agent0.loop.coordinator | Task completed: success=True reward=-0.285
 [LOCAL MODE] 2025-11-25 22:20:46 | INFO | agent0 | Step task-0004: success=True reward={'uncertainty': -0.44999999999999984, 'tool_use': -0.2, 'novelty': -1.5, 'correctness': 1.0, 'total': -0.285} route=cloud cloud=False
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-28 18:13:05 | INFO | agent0 | Loaded config: {
+  "models": {
+    "teacher": {
+      "backend": "ollama",
+      "model": "qwen2.5:3b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 4096,
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    },
+    "student": {
+      "backend": "ollama",
+      "model": "qwen2.5:7b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 8192,
+      "temperature": 0.6,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    }
+  },
+  "resources": {
+    "device": "cuda",
+    "max_gpu_memory_gb": 8,
+    "num_threads": 6,
+    "max_tokens_per_task": 512
+  },
+  "tooling": {
+    "enable_python": true,
+    "enable_shell": false,
+    "enable_math": true,
+    "enable_tests": false,
+    "timeout_seconds": 30,
+    "workdir": "./sandbox",
+    "allowed_shell": []
+  },
+  "rewards": {
+    "weight_uncertainty": 0.5,
+    "weight_tool_use": 0.3,
+    "weight_novelty": 0.2,
+    "target_success_rate": 0.5,
+    "repetition_similarity_threshold": 0.9
+  },
+  "curriculum": {
+    "enable_frontier": true,
+    "target_success": 0.5,
+    "frontier_window": 0.1,
+    "domains": [
+      "math",
+      "logic",
+      "code"
+    ]
+  },
+  "verification": {
+    "enable": false,
+    "num_samples": 3,
+    "confidence_threshold": 0.7,
+    "enable_cot": true
+  },
+  "logging": {
+    "base_dir": "./runs",
+    "save_every": 10,
+    "flush_every": 1
+  },
+  "router": {
+    "enable": true,
+    "cloud_confidence_threshold": 0.7,
+    "local_confidence_threshold": 0.4,
+    "cache_path": "./runs/router_cache.json",
+    "cloud_command": ""
+  },
+  "embedding": {
+    "use_transformer": true,
+    "model_name": "all-MiniLM-L6-v2"
+  },
+  "rate_limiting": {
+    "max_tasks_per_minute": 60,
+    "max_tasks_per_hour": 1000
+  },
+  "resource_limits": {
+    "max_memory_mb": 512,
+    "max_cpu_seconds": 30,
+    "max_output_kb": 100
+  }
+}
+[LOCAL MODE] 2025-11-28 18:13:05 | WARNING | agent0.validation.config_validator | Rate limiting configuration: max_tasks_per_minute (60) * 60 > max_tasks_per_hour (1000). This may cause unexpected behavior.
+[LOCAL MODE] 2025-11-28 18:13:05 | INFO | agent0.loop.coordinator | Configuration validation passed
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-28 18:13:39 | INFO | agent0 | Loaded config: {
+  "models": {
+    "teacher": {
+      "backend": "ollama",
+      "model": "qwen2.5:3b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 4096,
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    },
+    "student": {
+      "backend": "ollama",
+      "model": "qwen2.5:7b",
+      "host": "http://127.0.0.1:11434",
+      "context_length": 8192,
+      "temperature": 0.6,
+      "top_p": 0.9,
+      "uncertainty_samples": 3
+    }
+  },
+  "resources": {
+    "device": "cuda",
+    "max_gpu_memory_gb": 8,
+    "num_threads": 6,
+    "max_tokens_per_task": 512
+  },
+  "tooling": {
+    "enable_python": true,
+    "enable_shell": false,
+    "enable_math": true,
+    "enable_tests": false,
+    "timeout_seconds": 30,
+    "workdir": "./sandbox",
+    "allowed_shell": []
+  },
+  "rewards": {
+    "weight_uncertainty": 0.5,
+    "weight_tool_use": 0.3,
+    "weight_novelty": 0.2,
+    "target_success_rate": 0.5,
+    "repetition_similarity_threshold": 0.9
+  },
+  "curriculum": {
+    "enable_frontier": true,
+    "target_success": 0.5,
+    "frontier_window": 0.1,
+    "domains": [
+      "math",
+      "logic",
+      "code"
+    ]
+  },
+  "verification": {
+    "enable": false,
+    "num_samples": 3,
+    "confidence_threshold": 0.7,
+    "enable_cot": true
+  },
+  "logging": {
+    "base_dir": "./runs",
+    "save_every": 10,
+    "flush_every": 1
+  },
+  "router": {
+    "enable": true,
+    "cloud_confidence_threshold": 0.7,
+    "local_confidence_threshold": 0.4,
+    "cache_path": "./runs/router_cache.json",
+    "cloud_command": ""
+  },
+  "embedding": {
+    "use_transformer": true,
+    "model_name": "all-MiniLM-L6-v2"
+  },
+  "rate_limiting": {
+    "max_tasks_per_minute": 30,
+    "max_tasks_per_hour": 1000
+  },
+  "resource_limits": {
+    "max_memory_mb": 512,
+    "max_cpu_seconds": 30,
+    "max_output_kb": 100
+  }
+}
+[LOCAL MODE] 2025-11-28 18:13:39 | WARNING | agent0.validation.config_validator | Rate limiting configuration: max_tasks_per_minute (30) * 60 > max_tasks_per_hour (1000). This may cause unexpected behavior.
+[LOCAL MODE] 2025-11-28 18:13:39 | INFO | agent0.loop.coordinator | Configuration validation passed
+[LOCAL MODE] 2025-11-28 18:13:48 | INFO | agent0.loop.curriculum_scheduler | Curriculum initialized: target=0.5, domains=['math', 'logic', 'code']
+[LOCAL MODE] 2025-11-28 18:13:48 | WARNING | agent0.loop.coordinator | LOCAL MODE ACTIVE - code executes directly on your machine (no isolation)
+[LOCAL MODE] 2025-11-28 18:13:48 | INFO | agent0.loop.coordinator | Curriculum: step=0, domain=math, difficulty=0.30, global_sr=0.50
+[LOCAL MODE] 2025-11-28 18:13:48 | INFO | agent0.agents.teacher | Generating math task (difficulty=0.30)
+[LOCAL MODE] 2025-11-28 18:13:50 | INFO | agent0.loop.coordinator | Generated math task: Solve for x: 2x + 5 = 17.
+[LOCAL MODE] 2025-11-28 18:14:06 | INFO | agent0.loop.curriculum_scheduler | Step 1: domain=math, success=True, domain_sr=1.00, global_sr=0.55
+[LOCAL MODE] 2025-11-28 18:14:06 | INFO | agent0.loop.coordinator | Task completed: domain=math success=True reward=0.015 verification=1.00
+[LOCAL MODE] 2025-11-28 18:14:06 | INFO | agent0 | Trajectory success=True reward={'uncertainty': -0.44999999999999984, 'tool_use': -0.2, 'novelty': 0.0, 'correctness': 1.0, 'total': 0.015000000000000069} route=cloud cloud=False
+[LOCAL MODE] 2025-11-28 18:14:35 | WARNING | agent0 | ============================================================
+[LOCAL MODE] 2025-11-28 18:14:35 | WARNING | agent0 | LOCAL DEVELOPMENT MODE ACTIVE
+[LOCAL MODE] 2025-11-28 18:14:35 | WARNING | agent0 | Code will execute directly on your machine (no isolation).
+[LOCAL MODE] 2025-11-28 18:14:35 | WARNING | agent0 | Review sandbox/ and runs/ artifacts after execution.
+[LOCAL MODE] 2025-11-28 18:14:35 | WARNING | agent0 | ============================================================

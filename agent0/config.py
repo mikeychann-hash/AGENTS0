@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional, Union
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
@@ -31,8 +31,17 @@ class RunConfig(BaseModel):
     logs_dir: str = "runs/logs"
 
 
-def load_config(path: str | Path) -> RunConfig:
-    """Load a YAML configuration file into a RunConfig."""
+def _is_run_config_like(data: Any) -> bool:
+    """Check if the parsed YAML data matches the RunConfig schema."""
+    if not isinstance(data, dict):
+        return False
+    return "llm" in data
+
+
+def load_config(path: str | Path) -> Union[RunConfig, Dict[str, Any]]:
+    """Load a YAML configuration file, returning either a RunConfig or the raw dict."""
     config_path = Path(path)
     data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    return RunConfig.model_validate(data)
+    if _is_run_config_like(data):
+        return RunConfig.model_validate(data)
+    return data

@@ -1,0 +1,5 @@
+2025-11-28 18:57:02,073 - agent0.security - INFO - SECURITY: Security scan completed successfully | Type: suspicious_pattern_detected | Details: {"scan_type": "manual", "result": "secure"}
+2025-11-28 22:01:49,991 - agent0.security - INFO - SECURITY: Direct test: success | Type: code_execution_blocked | Details: {"test_type": "direct", "task_id": "direct_test_001", "success": true, "result": "6"}
+2025-11-28 22:01:49,991 - agent0.security - INFO - SECURITY: Direct test: success | Type: code_execution_blocked | Details: {"test_type": "direct", "task_id": "direct_test_001", "success": true, "result": "6"}
+2025-11-28 22:02:50,745 - agent0.security - INFO - SECURITY: Direct test: success | Type: code_execution_blocked | Details: {"test_type": "direct", "task_id": "direct_test_001", "success": true, "result": "2"}
+2025-11-28 22:02:50,745 - agent0.security - INFO - SECURITY: Direct test: success | Type: code_execution_blocked | Details: {"test_type": "direct", "task_id": "direct_test_001", "success": true, "result": "2"}
