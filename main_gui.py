@@ -88,7 +88,10 @@ class Agent0UnifiedGUI:
         
         # Setup GUI
         self.setup_gui()
-        
+
+        # Auto-connect to Ollama after GUI is ready
+        self.root.after(500, self.auto_connect_ollama)
+
         # Start monitoring
         self.monitoring_active = True
         self.start_monitoring()
@@ -106,6 +109,44 @@ class Agent0UnifiedGUI:
         except Exception as e:
             print(f"❌ Ollama connection failed: {e}")
             return False
+
+    def auto_connect_ollama(self):
+        """Automatically connect to Ollama on startup."""
+        try:
+            self.log_to_settings("Auto-connecting to Ollama...")
+            host = self.ollama_host_var.get()
+
+            if self.check_ollama_connection(host):
+                self.ollama_status_label.config(text="🟢 Connected", fg='green')
+                self.system_state['llm_connected'] = True
+                self.system_state['demo_mode'] = False
+                self.log_to_settings("✅ Auto-connected successfully!")
+                self.refresh_ollama_models()
+
+                # Update header connection indicator
+                self.update_connection_indicator(True)
+            else:
+                self.ollama_status_label.config(text="🔴 Not Connected", fg='red')
+                self.system_state['llm_connected'] = False
+                self.system_state['demo_mode'] = True
+                self.log_to_settings("⚠️ Auto-connect failed. Running in DEMO mode.")
+                self.log_to_settings("   Start Ollama with: ollama serve")
+
+                # Update header connection indicator
+                self.update_connection_indicator(False)
+
+        except Exception as e:
+            self.log_to_settings(f"❌ Auto-connect error: {e}")
+            self.update_connection_indicator(False)
+
+    def update_connection_indicator(self, connected: bool):
+        """Update the header connection status indicator."""
+        if connected:
+            self.status_indicator.config(text="🟢 CONNECTED", foreground='#27ae60')
+            self.coevolution_label.config(text="🟢 READY TO EVOLVE", background='#27ae60')
+        else:
+            self.status_indicator.config(text="🟡 DEMO MODE", foreground='#f39c12')
+            self.coevolution_label.config(text="🟡 DEMO MODE - Connect Ollama", background='#f39c12')
 
     def initialize_system(self):
         """Initialize the core Agent0 system with direct LLM connection."""
@@ -257,6 +298,7 @@ class Agent0UnifiedGUI:
         self.create_curriculum_tab()
         self.create_performance_tab()
         self.create_tools_tab()
+        self.create_settings_tab()  # New Settings tab with Ollama config
         self.create_logs_tab()
         self.create_control_tab()
         
@@ -687,7 +729,366 @@ class Agent0UnifiedGUI:
         tools_frame.columnconfigure(1, weight=2)
         tools_frame.rowconfigure(0, weight=1)
         tools_frame.rowconfigure(1, weight=1)
-        
+
+    def create_settings_tab(self):
+        """Create the settings tab with Ollama configuration."""
+        settings_frame = ttk.Frame(self.notebook)
+        self.notebook.add(settings_frame, text="⚙️ Settings")
+
+        # === Ollama Connection Section ===
+        ollama_frame = ttk.LabelFrame(settings_frame, text="🦙 Ollama Connection", padding="15")
+        ollama_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N), padx=10, pady=10)
+
+        # Connection status
+        status_row = ttk.Frame(ollama_frame)
+        status_row.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        ttk.Label(status_row, text="Status:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W)
+        self.ollama_status_label = tk.Label(status_row, text="⚪ Not Connected",
+                                           font=('Arial', 10, 'bold'), fg='gray')
+        self.ollama_status_label.grid(row=0, column=1, sticky=tk.W, padx=(10, 0))
+
+        # Host configuration
+        ttk.Label(ollama_frame, text="Ollama Host:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.ollama_host_var = tk.StringVar(value="http://127.0.0.1:11434")
+        self.ollama_host_entry = ttk.Entry(ollama_frame, textvariable=self.ollama_host_var, width=40)
+        self.ollama_host_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=10, pady=5)
+
+        connect_btn = ttk.Button(ollama_frame, text="🔌 Connect", command=self.connect_ollama, style='Success.TButton')
+        connect_btn.grid(row=1, column=2, padx=5, pady=5)
+
+        # Model selection section
+        models_frame = ttk.LabelFrame(ollama_frame, text="Model Selection", padding="10")
+        models_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(15, 5))
+
+        # Teacher model
+        ttk.Label(models_frame, text="Teacher Model:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.teacher_model_var = tk.StringVar(value="qwen2.5:3b")
+        self.teacher_model_combo = ttk.Combobox(models_frame, textvariable=self.teacher_model_var,
+                                                state='readonly', width=30)
+        self.teacher_model_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=10, pady=5)
+        self.teacher_model_combo['values'] = ['(No models loaded)']
+
+        # Student/Executor model
+        ttk.Label(models_frame, text="Executor Model:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.executor_model_var = tk.StringVar(value="qwen2.5:7b")
+        self.executor_model_combo = ttk.Combobox(models_frame, textvariable=self.executor_model_var,
+                                                 state='readonly', width=30)
+        self.executor_model_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=10, pady=5)
+        self.executor_model_combo['values'] = ['(No models loaded)']
+
+        # Refresh and Apply buttons
+        btn_frame = ttk.Frame(models_frame)
+        btn_frame.grid(row=2, column=0, columnspan=2, pady=(10, 0))
+
+        ttk.Button(btn_frame, text="🔄 Refresh Models", command=self.refresh_ollama_models).grid(row=0, column=0, padx=5)
+        ttk.Button(btn_frame, text="✅ Apply Models", command=self.apply_model_selection, style='Success.TButton').grid(row=0, column=1, padx=5)
+
+        # Available models list
+        models_list_frame = ttk.LabelFrame(ollama_frame, text="Available Models", padding="10")
+        models_list_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(15, 5))
+
+        self.models_listbox = tk.Listbox(models_list_frame, height=6, width=50, font=('Consolas', 10))
+        self.models_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        models_scrollbar = ttk.Scrollbar(models_list_frame, orient=tk.VERTICAL, command=self.models_listbox.yview)
+        models_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.models_listbox.config(yscrollcommand=models_scrollbar.set)
+
+        # Model info
+        self.model_info_label = ttk.Label(models_list_frame, text="Click 'Refresh Models' to load available models",
+                                         font=('Arial', 9), foreground='gray')
+        self.model_info_label.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(5, 0))
+
+        # === Model Parameters Section ===
+        params_frame = ttk.LabelFrame(settings_frame, text="🎛️ Model Parameters", padding="15")
+        params_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N), padx=10, pady=10)
+
+        # Temperature
+        ttk.Label(params_frame, text="Temperature:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.temperature_var = tk.DoubleVar(value=0.7)
+        temp_scale = ttk.Scale(params_frame, from_=0.0, to=2.0, variable=self.temperature_var,
+                              orient=tk.HORIZONTAL, length=200)
+        temp_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=10)
+        self.temp_value_label = ttk.Label(params_frame, text="0.7")
+        self.temp_value_label.grid(row=0, column=2)
+        temp_scale.configure(command=lambda v: self.temp_value_label.config(text=f"{float(v):.2f}"))
+
+        # Top P
+        ttk.Label(params_frame, text="Top P:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.top_p_var = tk.DoubleVar(value=0.9)
+        top_p_scale = ttk.Scale(params_frame, from_=0.0, to=1.0, variable=self.top_p_var,
+                               orient=tk.HORIZONTAL, length=200)
+        top_p_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=10)
+        self.top_p_value_label = ttk.Label(params_frame, text="0.9")
+        self.top_p_value_label.grid(row=1, column=2)
+        top_p_scale.configure(command=lambda v: self.top_p_value_label.config(text=f"{float(v):.2f}"))
+
+        # Max Tokens
+        ttk.Label(params_frame, text="Max Tokens:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.max_tokens_var = tk.IntVar(value=512)
+        tokens_spinbox = ttk.Spinbox(params_frame, from_=64, to=4096, textvariable=self.max_tokens_var, width=10)
+        tokens_spinbox.grid(row=2, column=1, sticky=tk.W, padx=10)
+
+        # Timeout
+        ttk.Label(params_frame, text="Timeout (s):").grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.timeout_var = tk.IntVar(value=120)
+        timeout_spinbox = ttk.Spinbox(params_frame, from_=10, to=600, textvariable=self.timeout_var, width=10)
+        timeout_spinbox.grid(row=3, column=1, sticky=tk.W, padx=10)
+
+        # === Quick Actions Section ===
+        actions_frame = ttk.LabelFrame(settings_frame, text="⚡ Quick Actions", padding="15")
+        actions_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=10, pady=10)
+
+        actions = [
+            ("🔄 Reconnect Ollama", self.reconnect_ollama),
+            ("🧪 Test Connection", self.test_ollama_connection),
+            ("📋 Copy Config", self.copy_ollama_config),
+            ("💾 Save Settings", self.save_settings),
+        ]
+
+        for i, (text, cmd) in enumerate(actions):
+            ttk.Button(actions_frame, text=text, command=cmd, width=20).grid(row=0, column=i, padx=10, pady=5)
+
+        # === Connection Log Section ===
+        log_frame = ttk.LabelFrame(settings_frame, text="📜 Connection Log", padding="10")
+        log_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
+
+        self.settings_log = scrolledtext.ScrolledText(log_frame, height=8, width=80, wrap=tk.WORD,
+                                                      font=('Consolas', 9))
+        self.settings_log.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.log_to_settings("Settings panel initialized. Click 'Connect' to connect to Ollama.")
+
+        # Configure grid weights
+        settings_frame.columnconfigure(0, weight=1)
+        settings_frame.columnconfigure(1, weight=1)
+        settings_frame.rowconfigure(2, weight=1)
+        ollama_frame.columnconfigure(1, weight=1)
+        models_list_frame.columnconfigure(0, weight=1)
+        models_list_frame.rowconfigure(0, weight=1)
+        log_frame.columnconfigure(0, weight=1)
+        log_frame.rowconfigure(0, weight=1)
+
+    def log_to_settings(self, message: str):
+        """Add a log message to the settings log."""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.settings_log.insert(tk.END, f"[{timestamp}] {message}\n")
+        self.settings_log.see(tk.END)
+
+    def connect_ollama(self):
+        """Connect to Ollama server."""
+        host = self.ollama_host_var.get().strip()
+        self.log_to_settings(f"Connecting to Ollama at {host}...")
+
+        if self.check_ollama_connection(host):
+            self.ollama_status_label.config(text="🟢 Connected", fg='green')
+            self.system_state['llm_connected'] = True
+            self.system_state['demo_mode'] = False
+            self.log_to_settings("✅ Successfully connected to Ollama!")
+            self.refresh_ollama_models()
+            self.update_connection_indicator(True)
+        else:
+            self.ollama_status_label.config(text="🔴 Connection Failed", fg='red')
+            self.system_state['llm_connected'] = False
+            self.system_state['demo_mode'] = True
+            self.log_to_settings("❌ Failed to connect to Ollama. Make sure it's running.")
+            self.update_connection_indicator(False)
+            messagebox.showerror("Connection Failed",
+                               f"Could not connect to Ollama at {host}\n\n"
+                               "Make sure Ollama is running:\n"
+                               "  1. Install: https://ollama.ai\n"
+                               "  2. Run: ollama serve\n"
+                               "  3. Pull a model: ollama pull qwen2.5:3b")
+
+    def refresh_ollama_models(self):
+        """Refresh the list of available Ollama models."""
+        host = self.ollama_host_var.get().strip()
+        self.log_to_settings("Fetching available models...")
+
+        try:
+            import requests
+            response = requests.get(f"{host}/api/tags", timeout=5)
+            if response.status_code == 200:
+                models_data = response.json().get('models', [])
+                model_names = [m.get('name', 'unknown') for m in models_data]
+
+                # Update comboboxes
+                self.teacher_model_combo['values'] = model_names if model_names else ['(No models available)']
+                self.executor_model_combo['values'] = model_names if model_names else ['(No models available)']
+
+                # Update listbox with details
+                self.models_listbox.delete(0, tk.END)
+                for model in models_data:
+                    name = model.get('name', 'unknown')
+                    size = model.get('size', 0)
+                    size_gb = size / (1024**3) if size else 0
+                    self.models_listbox.insert(tk.END, f"{name} ({size_gb:.1f} GB)")
+
+                self.model_info_label.config(text=f"Found {len(model_names)} models")
+                self.log_to_settings(f"✅ Found {len(model_names)} models: {', '.join(model_names[:5])}{'...' if len(model_names) > 5 else ''}")
+
+                # Auto-select first model if current selection is invalid
+                if model_names:
+                    if self.teacher_model_var.get() not in model_names:
+                        self.teacher_model_var.set(model_names[0])
+                    if self.executor_model_var.get() not in model_names:
+                        self.executor_model_var.set(model_names[0] if len(model_names) == 1 else model_names[-1])
+            else:
+                self.log_to_settings(f"❌ Failed to fetch models: HTTP {response.status_code}")
+        except Exception as e:
+            self.log_to_settings(f"❌ Error fetching models: {e}")
+            self.models_listbox.delete(0, tk.END)
+            self.models_listbox.insert(tk.END, "(Error fetching models)")
+
+    def apply_model_selection(self):
+        """Apply the selected models to the system."""
+        teacher = self.teacher_model_var.get()
+        executor = self.executor_model_var.get()
+
+        if '(No models' in teacher or '(No models' in executor:
+            messagebox.showwarning("No Models", "Please connect to Ollama and refresh models first.")
+            return
+
+        self.log_to_settings(f"Applying models - Teacher: {teacher}, Executor: {executor}")
+
+        try:
+            # Update system state
+            self.system_state['teacher_model'] = teacher
+            self.system_state['executor_model'] = executor
+
+            # Update the configuration
+            host = self.ollama_host_var.get().strip()
+
+            # Reinitialize agents with new models
+            teacher_config = {
+                'backend': 'ollama',
+                'model': teacher,
+                'host': host,
+                'temperature': self.temperature_var.get(),
+                'top_p': self.top_p_var.get(),
+            }
+            executor_config = {
+                'backend': 'ollama',
+                'model': executor,
+                'host': host,
+                'temperature': self.temperature_var.get(),
+                'top_p': self.top_p_var.get(),
+            }
+
+            # Reinitialize agents
+            self.teacher = TeacherAgent(teacher_config)
+            self.executor = StudentAgent(executor_config)
+
+            self.log_to_settings(f"✅ Models applied successfully!")
+            self.log_to_settings(f"   Teacher: {teacher}")
+            self.log_to_settings(f"   Executor: {executor}")
+
+            messagebox.showinfo("Models Applied",
+                              f"Models updated successfully!\n\n"
+                              f"Teacher: {teacher}\n"
+                              f"Executor: {executor}")
+
+            # Refresh the display
+            self.refresh_display()
+
+        except Exception as e:
+            self.log_to_settings(f"❌ Error applying models: {e}")
+            messagebox.showerror("Error", f"Failed to apply models: {e}")
+
+    def reconnect_ollama(self):
+        """Reconnect to Ollama server."""
+        self.log_to_settings("Reconnecting to Ollama...")
+        self.connect_ollama()
+
+    def test_ollama_connection(self):
+        """Test the Ollama connection with a simple prompt."""
+        host = self.ollama_host_var.get().strip()
+        model = self.teacher_model_var.get()
+
+        if '(No models' in model:
+            messagebox.showwarning("No Model", "Please select a model first.")
+            return
+
+        self.log_to_settings(f"Testing connection with {model}...")
+
+        try:
+            import requests
+            response = requests.post(
+                f"{host}/api/generate",
+                json={
+                    "model": model,
+                    "prompt": "Say 'Hello' in one word.",
+                    "stream": False,
+                    "options": {"num_predict": 10}
+                },
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                result = response.json().get('response', '')
+                self.log_to_settings(f"✅ Test successful! Response: {result.strip()[:50]}")
+                messagebox.showinfo("Test Successful", f"Ollama responded: {result.strip()[:100]}")
+            else:
+                self.log_to_settings(f"❌ Test failed: HTTP {response.status_code}")
+                messagebox.showerror("Test Failed", f"HTTP Error: {response.status_code}")
+
+        except Exception as e:
+            self.log_to_settings(f"❌ Test error: {e}")
+            messagebox.showerror("Test Failed", f"Error: {e}")
+
+    def copy_ollama_config(self):
+        """Copy Ollama configuration to clipboard."""
+        config = f"""# Ollama Configuration
+Host: {self.ollama_host_var.get()}
+Teacher Model: {self.teacher_model_var.get()}
+Executor Model: {self.executor_model_var.get()}
+Temperature: {self.temperature_var.get():.2f}
+Top P: {self.top_p_var.get():.2f}
+Max Tokens: {self.max_tokens_var.get()}
+Timeout: {self.timeout_var.get()}s
+"""
+        self.root.clipboard_clear()
+        self.root.clipboard_append(config)
+        self.log_to_settings("📋 Configuration copied to clipboard")
+        messagebox.showinfo("Copied", "Configuration copied to clipboard!")
+
+    def save_settings(self):
+        """Save current settings to config file."""
+        self.log_to_settings("Saving settings...")
+
+        try:
+            import yaml
+            config_path = Path("agent0/configs/3070ti.yaml")
+
+            # Load existing config
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+
+            # Update with new values
+            config['models']['teacher']['model'] = self.teacher_model_var.get()
+            config['models']['teacher']['host'] = self.ollama_host_var.get()
+            config['models']['teacher']['temperature'] = self.temperature_var.get()
+            config['models']['teacher']['top_p'] = self.top_p_var.get()
+
+            config['models']['student']['model'] = self.executor_model_var.get()
+            config['models']['student']['host'] = self.ollama_host_var.get()
+            config['models']['student']['temperature'] = self.temperature_var.get()
+            config['models']['student']['top_p'] = self.top_p_var.get()
+
+            config['resources']['max_tokens_per_task'] = self.max_tokens_var.get()
+            config['tooling']['timeout_seconds'] = self.timeout_var.get()
+
+            # Save config
+            with open(config_path, 'w') as f:
+                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+            self.log_to_settings("✅ Settings saved to agent0/configs/3070ti.yaml")
+            messagebox.showinfo("Saved", "Settings saved successfully!")
+
+        except Exception as e:
+            self.log_to_settings(f"❌ Error saving settings: {e}")
+            messagebox.showerror("Error", f"Failed to save settings: {e}")
+
     def create_logs_tab(self):
         """Create the logs viewing tab."""
         logs_frame = ttk.Frame(self.notebook)
