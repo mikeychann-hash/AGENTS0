@@ -7,6 +7,7 @@ Integrated dashboard for agent co-evolution with direct LLM connection
 import sys
 import json
 import time
+import re
 import threading
 from pathlib import Path
 from datetime import datetime
@@ -64,7 +65,7 @@ class Agent0UnifiedGUI:
 
         # Evolution tracking
         self.evolution_data = {
-            'interaction_history': [],
+            'task_history': [],
             'performance_trend': [],
             'difficulty_progression': [],
             'domain_distribution': {'math': 0, 'logic': 0, 'code': 0},
@@ -178,10 +179,15 @@ class Agent0UnifiedGUI:
         self.status_indicator.grid(row=0, column=1, sticky=tk.E, padx=(0, 20))
         
         # Subtitle
-        subtitle_label = ttk.Label(header_frame, text="Self-evolving agents through teacher-executor co-evolution with tool integration", 
+        subtitle_label = ttk.Label(header_frame, text="Self-evolving agents through teacher-executor co-evolution with tool integration",
                                   style='Section.TLabel', font=('Arial', 10))
         subtitle_label.grid(row=1, column=0, columnspan=2, sticky=tk.W)
-        
+
+        # Co-evolution status label
+        self.coevolution_label = tk.Label(header_frame, text="🟡 CO-EVOLUTION: INITIALIZING",
+                                         font=('Arial', 9, 'bold'), bg='#f39c12', fg='white', padx=8, pady=2)
+        self.coevolution_label.grid(row=1, column=2, sticky=tk.E, padx=(10, 0))
+
         # Control buttons
         control_frame = ttk.Frame(header_frame, style='Main.TFrame')
         control_frame.grid(row=0, column=2, sticky=tk.E, padx=(20, 0))
@@ -971,9 +977,19 @@ class Agent0UnifiedGUI:
             self.system_state['running'] = False
             self.add_activity("Evolution paused.", 'info')
             self.evolution_status_var.set("Evolution: Paused")
-            self.status_indicator.config(text=" PAUSED", foreground='#f39c12')
+            self.status_indicator.config(text="⏸️ PAUSED", foreground='#f39c12')
             self.progress_bar.stop()
-        
+
+    def emergency_stop(self):
+        """Emergency stop - immediately halt all operations."""
+        self.system_state['running'] = False
+        self.monitoring_active = False
+        self.add_activity("🚨 EMERGENCY STOP activated!", 'failure')
+        self.evolution_status_var.set("Evolution: EMERGENCY STOP")
+        self.status_indicator.config(text="🛑 EMERGENCY STOP", foreground='#e74c3c')
+        self.progress_bar.stop()
+        messagebox.showwarning("Emergency Stop", "All operations have been halted immediately.")
+
     def reset_system(self):
         """Reset the system to initial state."""
         if messagebox.askyesno("Confirm Reset", "Are you sure you want to reset the system?"):
@@ -995,7 +1011,7 @@ class Agent0UnifiedGUI:
             }
             
             self.evolution_data = {
-                'interaction_history': [],
+                'task_history': [],
                 'performance_trend': [],
                 'difficulty_progression': [],
                 'domain_distribution': {'math': 0, 'logic': 0, 'code': 0},
@@ -1260,171 +1276,7 @@ class Agent0UnifiedGUI:
                 
         except Exception as e:
             print(f"Error refreshing file list: {e}")
-            
-    def start_monitoring(self):
-        """Start monitoring the system."""
-        self.monitoring_active = True
-        self.start_monitoring_thread()
-        
-    def start_monitoring_thread(self):
-        """Start the monitoring thread."""
-        self.monitoring_thread = threading.Thread(target=self.monitor_system, daemon=True)
-        self.monitoring_thread.start()
-        
-    def monitor_system(self):
-        """Monitor the system in background."""
-        while self.monitoring_active:
-            try:
-                # Update system state
-                self.simulate_system_data()
-                
-                # Update GUI
-                self.root.after(0, self.refresh_display)
-                
-            except Exception as e:
-                print(f"Error monitoring system: {e}")
-            
-            time.sleep(2)  # Update every 2 seconds
-            
-    def simulate_system_data(self):
-        """Simulate system data for demonstration."""
-        # Update system state
-        self.system_state['tasks_completed'] += 1
-        self.system_state['success_rate'] = min(95.0, self.system_state['success_rate'] + 0.5)
-        self.system_state['current_difficulty'] = min(0.9, self.system_state['current_difficulty'] + 0.01)
-        
-        # Simulate domain rotation
-        domains = ['math', 'logic', 'code']
-        current_index = domains.index(self.system_state['active_domain'])
-        if self.system_state['tasks_completed'] % 10 == 0:
-            self.system_state['active_domain'] = domains[(current_index + 1) % len(domains)]
-        
-        # Add activity
-        self.add_activity(f"Teacher generated {self.system_state['active_domain']} task at difficulty {self.system_state['current_difficulty']:.3f}", 'teacher')
-        self.add_activity(f"Executor attempted task with tool integration", 'executor')
-        
-        if self.system_state['tasks_completed'] % 3 == 0:
-            self.add_activity(f"Task completed successfully! Success rate: {self.system_state['success_rate']:.1f}%", 'success')
-        else:
-            self.add_activity(f"Task failed. Learning from experience...", 'failure')
-        
-        # Update evolution data
-        self.evolution_data['task_history'].append({
-            'task_id': f"task_{self.system_state['tasks_completed']}",
-            'domain': self.system_state['active_domain'],
-            'difficulty': self.system_state['current_difficulty'],
-            'success': self.system_state['tasks_completed'] % 3 == 0
-        })
-        
-        self.evolution_data['performance_trend'].append(self.system_state['success_rate'])
-        self.evolution_data['difficulty_progression'].append(self.system_state['current_difficulty'])
-        self.evolution_data['domain_distribution'][self.system_state['active_domain']] += 1
-        
-    def add_activity(self, message, tag='info'):
-        """Add activity to the activity logs."""
-        try:
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            
-            # Add to overview activity
-            self.overview_activity.insert(tk.END, f"[{timestamp}] {message}\n", tag)
-            self.overview_activity.see(tk.END)
-            
-            # Add to evolution process
-            self.evolution_process.insert(tk.END, f"[{timestamp}] {message}\n", tag)
-            self.evolution_process.see(tk.END)
-            
-            # Add to teacher behavior
-            if 'teacher' in tag:
-                self.teacher_behavior.insert(tk.END, f"[{timestamp}] {message}\n", 'task_generation')
-                self.teacher_behavior.see(tk.END)
-            
-            # Add to executor behavior
-            if 'executor' in tag:
-                self.executor_behavior.insert(tk.END, f"[{timestamp}] {message}\n", 'solution_attempt')
-                self.executor_behavior.see(tk.END)
-            
-            # Keep only last 100 lines
-            for text_widget in [self.overview_activity, self.evolution_process, 
-                              self.teacher_behavior, self.executor_behavior,
-                              self.curriculum_generation, self.curriculum_history,
-                              self.performance_progression, self.performance_trends,
-                              self.reasoning_patterns, self.recent_calls]:
-                lines = text_widget.get(1.0, tk.END).count('\n')
-                if lines > 100:
-                    text_widget.delete(1.0, f"{lines-100}.0")
-                    
-        except Exception as e:
-            print(f"Error adding activity: {e}")
-            
-    def start_evolution(self):
-        """Start the evolution process."""
-        if not self.system_state['running']:
-            self.system_state['running'] = True
-            self.add_activity("Starting agent evolution process...", 'info')
-            self.evolution_status_var.set("Evolution: Starting...")
-            self.status_indicator.config(text="🟡 EVOLVING", foreground='#f39c12')
-            self.progress_bar.start()
-            
-            # Start background evolution
-            self.evolution_thread = threading.Thread(target=self.run_evolution_loop, daemon=True)
-            self.evolution_thread.start()
-            
-    def stop_evolution(self):
-        """Stop the evolution process."""
-        if self.system_state['running']:
-            self.system_state['running'] = False
-            self.add_activity("Stopping agent evolution...", 'info')
-            self.evolution_status_var.set("Evolution: Stopping...")
-            self.status_indicator.config(text="🔴 STOPPED", foreground='#e74c3c')
-            self.progress_bar.stop()
-            
-    def step_evolution(self):
-        """Step forward in evolution."""
-        self.add_activity("Stepping evolution forward...", 'info')
-        # Force an update
-        self.simulate_system_data()
-        self.refresh_display()
-        
-    def reset_system(self):
-        """Reset the system to initial state."""
-        if messagebox.askyesno("Confirm Reset", "Are you sure you want to reset the system?"):
-            self.add_activity("Resetting system to initial state...", 'info')
-            
-            # Reset system state
-            self.system_state = {
-                'running': False,
-                'coordinator': None,
-                'teacher': None,
-                'executor': None,
-                'tasks_completed': 0,
-                'success_rate': 0.0,
-                'current_difficulty': 0.5,
-                'active_domain': 'math',
-                'last_task': None,
-                'last_result': None,
-                'llm_connected': False
-            }
-            
-            self.evolution_data = {
-                'interaction_history': [],
-                'performance_trend': [],
-                'difficulty_progression': [],
-                'domain_distribution': {'math': 0, 'logic': 0, 'code': 0},
-                'tool_usage': {'math_engine': 0, 'python': 0, 'shell': 0}
-            }
-            
-            # Clear all text widgets
-            for text_widget in [self.overview_activity, self.evolution_process, 
-                              self.teacher_behavior, self.executor_behavior,
-                              self.curriculum_generation, self.curriculum_history,
-                              self.performance_progression, self.performance_trends,
-                              self.reasoning_patterns, self.recent_calls]:
-                text_widget.delete(1.0, tk.END)
-            
-            self.add_activity("System reset to initial state", 'info')
-            self.refresh_display()
-            self.status_indicator.config(text="🟢 SYSTEM READY", foreground='#27ae60')
-            
+
     def run_evolution_loop(self):
         """Run the main evolution loop with actual LLM integration."""
         try:
@@ -1525,10 +1377,7 @@ class Agent0UnifiedGUI:
         try:
             # Set up window close handler
             self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-            
-            # Initialize system
-            self.initialize_system()
-            
+
             # Start the GUI
             print("Starting Agent0 Unified GUI...")
             self.root.mainloop()
