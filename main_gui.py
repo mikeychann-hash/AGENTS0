@@ -38,16 +38,17 @@ from agent0.tools import math_engine, python_runner, shell_runner, test_runner
 
 class Agent0UnifiedGUI:
     """Unified GUI for Agent0 with all components in tabs."""
-    
+
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Agent0 Unified Dashboard - Agent Co-Evolution System")
         self.root.geometry("1400x900")
         self.root.configure(bg='#f0f0f0')
-        
-        # System state
+
+        # System state with real stats tracking
         self.system_state = {
             'running': False,
+            'demo_mode': True,  # True = simulated data, False = real data
             'coordinator': None,
             'teacher': None,
             'executor': None,
@@ -57,9 +58,22 @@ class Agent0UnifiedGUI:
             'active_domain': 'math',
             'last_task': None,
             'last_result': None,
-            'llm_connected': False
+            'llm_connected': False,
+            'teacher_model': 'Not connected',
+            'executor_model': 'Not connected',
         }
-        
+
+        # Real stats tracking (not simulated)
+        self.real_stats = {
+            'domain_success': {'math': {'success': 0, 'total': 0},
+                              'logic': {'success': 0, 'total': 0},
+                              'code': {'success': 0, 'total': 0}},
+            'tool_usage': {'math_engine': 0, 'python': 0, 'shell': 0, 'test': 0},
+            'tool_success': {'math_engine': 0, 'python': 0, 'shell': 0, 'test': 0},
+            'total_time': 0.0,
+            'task_count': 0,
+        }
+
         # Initialize core system components
         self.initialize_system()
 
@@ -79,33 +93,57 @@ class Agent0UnifiedGUI:
         self.monitoring_active = True
         self.start_monitoring()
         
+    def check_ollama_connection(self, host: str = "http://127.0.0.1:11434") -> bool:
+        """Check if Ollama server is running and accessible."""
+        try:
+            import requests
+            response = requests.get(f"{host}/api/tags", timeout=5)
+            if response.status_code == 200:
+                models = response.json().get('models', [])
+                print(f"✅ Ollama connected. Available models: {[m.get('name', 'unknown') for m in models]}")
+                return True
+            return False
+        except Exception as e:
+            print(f"❌ Ollama connection failed: {e}")
+            return False
+
     def initialize_system(self):
         """Initialize the core Agent0 system with direct LLM connection."""
         try:
             print("Initializing Agent0 system with direct LLM connection...")
-            
+
             # Load configuration
             from agent0.config import load_config
             config = load_config("agent0/configs/3070ti.yaml")
-            
+
             # Validate configuration
             from agent0.validation.config_validator import validate_config
             validate_config(config)
-            
+
             print("✅ Configuration loaded and validated")
-            
+
+            # Check Ollama connection first
+            ollama_host = config.get("models", {}).get("teacher", {}).get("host", "http://127.0.0.1:11434")
+            if self.check_ollama_connection(ollama_host):
+                self.system_state['llm_connected'] = True
+                self.system_state['demo_mode'] = False
+            else:
+                print("⚠️ Running in DEMO MODE - Ollama not available")
+                self.system_state['llm_connected'] = False
+                self.system_state['demo_mode'] = True
+
             # Initialize security logger
             self.log_dir = Path("runs")
             self.security_logger = SecurityLogger(self.log_dir, enable_monitoring=True)
-            
+
             print("✅ Security logger initialized")
-            
+
             # Initialize coordinator with direct LLM connection
             print("Initializing coordinator...")
             self.coordinator = Coordinator(config)
-            
+
             print("✅ Coordinator initialized successfully")
-            
+
             # Extract agent configurations
             teacher_config = config["models"]["teacher"]
             executor_config = config["models"]["student"]
@@ -805,39 +843,89 @@ class Agent0UnifiedGUI:
         """Monitor the system in background."""
         while self.monitoring_active:
             try:
-                # Simulate system monitoring
-                self.simulate_system_data()
-                
-                # Update GUI
+                # Only update GUI, don't generate fake data automatically
                 self.root.after(0, self.refresh_display)
-                
+
             except Exception as e:
                 print(f"Error monitoring system: {e}")
-            
+
             time.sleep(2)  # Update every 2 seconds
-            
+
+    def record_task_result(self, domain: str, success: bool, tool_calls: list, duration: float):
+        """Record real task results for stats tracking."""
+        # Update domain stats
+        self.real_stats['domain_success'][domain]['total'] += 1
+        if success:
+            self.real_stats['domain_success'][domain]['success'] += 1
+
+        # Update tool usage from actual tool calls
+        for call in tool_calls:
+            tool_name = call.get('tool', '')
+            if tool_name in self.real_stats['tool_usage']:
+                self.real_stats['tool_usage'][tool_name] += 1
+                if call.get('status') == 'ok':
+                    self.real_stats['tool_success'][tool_name] += 1
+
+        # Update timing stats
+        self.real_stats['total_time'] += duration
+        self.real_stats['task_count'] += 1
+
+        # Update evolution data
+        self.evolution_data['task_history'].append({
+            'task_id': f"task_{self.system_state['tasks_completed']}",
+            'domain': domain,
+            'difficulty': self.system_state['current_difficulty'],
+            'success': success
+        })
+        self.evolution_data['domain_distribution'][domain] += 1
+
+    def get_domain_success_rate(self, domain: str) -> float:
+        """Get real success rate for a domain."""
+        stats = self.real_stats['domain_success'].get(domain, {'success': 0, 'total': 0})
+        if stats['total'] == 0:
+            return 0.0
+        return (stats['success'] / stats['total']) * 100.0
+
+    def get_tool_efficiency(self) -> float:
+        """Calculate real tool efficiency from actual usage."""
+        total_usage = sum(self.real_stats['tool_usage'].values())
+        total_success = sum(self.real_stats['tool_success'].values())
+        if total_usage == 0:
+            return 0.0
+        return (total_success / total_usage) * 100.0
+
+    def get_avg_task_time(self) -> float:
+        """Get average task completion time."""
+        if self.real_stats['task_count'] == 0:
+            return 0.0
+        return self.real_stats['total_time'] / self.real_stats['task_count']
+
     def simulate_system_data(self):
-        """Simulate system data for demonstration."""
-        # Update system state
+        """Generate demo data - only called when explicitly stepping in demo mode."""
+        if not self.system_state.get('demo_mode', True):
+            return  # Don't simulate if we have real data
+
+        # Update system state for demo
         self.system_state['tasks_completed'] += 1
         self.system_state['success_rate'] = min(95.0, self.system_state['success_rate'] + 0.5)
         self.system_state['current_difficulty'] = min(0.9, self.system_state['current_difficulty'] + 0.01)
-        
+
         # Simulate domain rotation
         domains = ['math', 'logic', 'code']
         current_index = domains.index(self.system_state['active_domain'])
         if self.system_state['tasks_completed'] % 10 == 0:
             self.system_state['active_domain'] = domains[(current_index + 1) % len(domains)]
-        
-        # Add activity
-        self.add_activity(f"Teacher generated {self.system_state['active_domain']} task at difficulty {self.system_state['current_difficulty']:.3f}", 'teacher')
-        self.add_activity(f"Executor attempted task with tool integration", 'executor')
-        
-        if self.system_state['tasks_completed'] % 3 == 0:
-            self.add_activity(f"Task completed successfully! Success rate: {self.system_state['success_rate']:.1f}%", 'success')
+
+        # Add demo activity
+        self.add_activity(f"[DEMO] Teacher generated {self.system_state['active_domain']} task", 'teacher')
+        self.add_activity(f"[DEMO] Executor attempted task", 'executor')
+
+        success = self.system_state['tasks_completed'] % 3 == 0
+        if success:
+            self.add_activity(f"[DEMO] Task completed successfully!", 'success')
         else:
-            self.add_activity(f"Task failed. Learning from experience...", 'failure')
-        
+            self.add_activity(f"[DEMO] Task failed.", 'failure')
+
         # Update evolution data
         self.evolution_data['task_history'].append({
             'task_id': f"task_{self.system_state['tasks_completed']}",
@@ -851,72 +939,93 @@ class Agent0UnifiedGUI:
         self.evolution_data['domain_distribution'][self.system_state['active_domain']] += 1
         
     def refresh_display(self):
-        """Refresh the display with current data."""
+        """Refresh the display with current data (real or demo)."""
         try:
+            is_demo = self.system_state.get('demo_mode', True)
+            mode_prefix = "[DEMO] " if is_demo else ""
+
             # Update overview
-            self.overview_vars['teacher_model'].set(f"{self.system_state['teacher_model']}")
-            self.overview_vars['executor_model'].set(f"{self.system_state['executor_model']}")
+            self.overview_vars['teacher_model'].set(f"{mode_prefix}{self.system_state['teacher_model']}")
+            self.overview_vars['executor_model'].set(f"{mode_prefix}{self.system_state['executor_model']}")
             self.overview_vars['tasks_completed'].set(f"{self.system_state['tasks_completed']}")
             self.overview_vars['success_rate'].set(f"{self.system_state['success_rate']:.1f}%")
             self.overview_vars['current_difficulty'].set(f"{self.system_state['current_difficulty']:.3f}")
             self.overview_vars['active_domain'].set(f"{self.system_state['active_domain']}")
-            
+
             # Update evolution
             self.evolution_vars['coevolution_cycles'].set(f"{len(self.evolution_data['task_history'])}")
-            self.evolution_vars['success_trend'].set(f"{self.system_state['success_rate']:.1f}% ↑")
-            self.evolution_vars['difficulty_progress'].set(f"{self.system_state['current_difficulty']:.3f} ↑")
+            self.evolution_vars['success_trend'].set(f"{self.system_state['success_rate']:.1f}%")
+            self.evolution_vars['difficulty_progress'].set(f"{self.system_state['current_difficulty']:.3f}")
             self.evolution_vars['learning_velocity'].set(f"{(self.system_state['success_rate'] / max(1, len(self.evolution_data['task_history'])) * 10):.2f}")
             self.evolution_vars['domain_dist'].set(f"Math: {self.evolution_data['domain_distribution']['math']}, Logic: {self.evolution_data['domain_distribution']['logic']}, Code: {self.evolution_data['domain_distribution']['code']}")
-            self.evolution_vars['tool_efficiency'].set(f"{85.0:.1f}%")  # Simulated
-            
+
+            # Use real tool efficiency when available
+            tool_eff = self.get_tool_efficiency() if not is_demo else 0.0
+            self.evolution_vars['tool_efficiency'].set(f"{tool_eff:.1f}%" if tool_eff > 0 else "N/A")
+
             # Update agents
             self.teacher_vars['teacher_model'].set(f"{self.system_state['teacher_model']}")
             self.teacher_vars['teacher_tasks'].set(f"{self.system_state['tasks_completed']}")
             self.teacher_vars['teacher_difficulty'].set(f"{self.system_state['current_difficulty']:.3f}")
             self.teacher_vars['teacher_domain'].set(f"{self.system_state['active_domain']}")
             self.teacher_vars['teacher_adaptation'].set(f"{min(100.0, self.system_state['success_rate']):.1f}%")
-            
+
             self.executor_vars['executor_model'].set(f"{self.system_state['executor_model']}")
             self.executor_vars['executor_tasks'].set(f"{self.system_state['tasks_completed']}")
             self.executor_vars['executor_success'].set(f"{self.system_state['success_rate']:.1f}%")
-            self.executor_vars['executor_tools'].set(f"{self.system_state['tasks_completed'] * 0.7:.0f}")  # Simulated
+
+            # Use real tool usage count
+            total_tools = sum(self.real_stats['tool_usage'].values())
+            self.executor_vars['executor_tools'].set(f"{total_tools}")
             self.executor_vars['executor_learning'].set(f"{min(100.0, self.system_state['success_rate']):.1f}%")
-            
+
             # Update curriculum
             self.curriculum_vars['curriculum_domain'].set(f"{self.system_state['active_domain']}")
             self.curriculum_vars['curriculum_difficulty'].set(f"{self.system_state['current_difficulty']:.3f}")
-            self.curriculum_vars['curriculum_frontier'].set(f"0.1")  # Configured value
-            self.curriculum_vars['curriculum_target'].set(f"0.5")  # Configured value
-            self.curriculum_vars['curriculum_domains'].set(f"math, logic, code")  # Configured value
-            
-            # Update performance
+            self.curriculum_vars['curriculum_frontier'].set(f"0.1")
+            self.curriculum_vars['curriculum_target'].set(f"0.5")
+            self.curriculum_vars['curriculum_domains'].set(f"math, logic, code")
+
+            # Update performance with REAL domain success rates
             self.performance_vars['overall_success'].set(f"{self.system_state['success_rate']:.1f}%")
-            self.performance_vars['math_success'].set(f"{self.system_state['success_rate'] * 0.9:.1f}%")  # Simulated
-            self.performance_vars['logic_success'].set(f"{self.system_state['success_rate'] * 0.85:.1f}%")  # Simulated
-            self.performance_vars['code_success'].set(f"{self.system_state['success_rate'] * 0.8:.1f}%")  # Simulated
-            self.performance_vars['avg_time'].set(f"{(10 - self.system_state['current_difficulty'] * 5):.1f}s")  # Simulated
-            self.performance_vars['tool_efficiency'].set(f"{85.0:.1f}%")  # Simulated
-            
-            # Update tools
-            self.tools_vars['math_usage'].set(f"{self.system_state['tasks_completed'] * 0.4:.0f}")  # Simulated
-            self.tools_vars['python_usage'].set(f"{self.system_state['tasks_completed'] * 0.6:.0f}")  # Simulated
-            self.tools_vars['shell_usage'].set(f"{self.system_state['tasks_completed'] * 0.1:.0f}")  # Simulated
-            self.tools_vars['test_usage'].set(f"{self.system_state['tasks_completed'] * 0.2:.0f}")  # Simulated
-            self.tools_vars['tools_success'].set(f"{self.system_state['success_rate']:.1f}%")
-            self.tools_vars['tools_time'].set(f"{(8 - self.system_state['current_difficulty'] * 3):.1f}s")  # Simulated
-            
+
+            math_rate = self.get_domain_success_rate('math')
+            logic_rate = self.get_domain_success_rate('logic')
+            code_rate = self.get_domain_success_rate('code')
+
+            self.performance_vars['math_success'].set(f"{math_rate:.1f}%" if math_rate > 0 else "N/A")
+            self.performance_vars['logic_success'].set(f"{logic_rate:.1f}%" if logic_rate > 0 else "N/A")
+            self.performance_vars['code_success'].set(f"{code_rate:.1f}%" if code_rate > 0 else "N/A")
+
+            # Use real average time
+            avg_time = self.get_avg_task_time()
+            self.performance_vars['avg_time'].set(f"{avg_time:.1f}s" if avg_time > 0 else "N/A")
+            self.performance_vars['tool_efficiency'].set(f"{tool_eff:.1f}%" if tool_eff > 0 else "N/A")
+
+            # Update tools with REAL usage counts
+            self.tools_vars['math_usage'].set(f"{self.real_stats['tool_usage']['math_engine']}")
+            self.tools_vars['python_usage'].set(f"{self.real_stats['tool_usage']['python']}")
+            self.tools_vars['shell_usage'].set(f"{self.real_stats['tool_usage']['shell']}")
+            self.tools_vars['test_usage'].set(f"{self.real_stats['tool_usage']['test']}")
+            self.tools_vars['tools_success'].set(f"{tool_eff:.1f}%" if tool_eff > 0 else "N/A")
+            self.tools_vars['tools_time'].set(f"{avg_time:.1f}s" if avg_time > 0 else "N/A")
+
             # Update status bar
-            self.evolution_status_var.set(f"Evolution: Active - {self.system_state['tasks_completed']} tasks")
+            status_mode = "DEMO" if is_demo else "LIVE"
+            llm_status = "Connected" if self.system_state['llm_connected'] else "Not Connected"
+            self.evolution_status_var.set(f"[{status_mode}] Tasks: {self.system_state['tasks_completed']}")
+            self.llm_status_var.set(f"LLM: {llm_status}")
             self.last_update_var.set(f"Last update: {datetime.now().strftime('%H:%M:%S')}")
-            
+
             # Update co-evolution status
             if self.system_state['success_rate'] > 80:
                 self.coevolution_label.config(text="🟢 CO-EVOLUTION: EXCELLENT", background='#27ae60')
             elif self.system_state['success_rate'] > 60:
                 self.coevolution_label.config(text="🟡 CO-EVOLUTION: GOOD", background='#f39c12')
             else:
-                self.coevolution_label.config(text="🔴 CO-EVOLUTION: NEEDS ATTENTION", background='#e74c3c')
-            
+                label_text = "🔴 CO-EVOLUTION: DEMO MODE" if is_demo else "🔴 CO-EVOLUTION: NEEDS ATTENTION"
+                self.coevolution_label.config(text=label_text, background='#e74c3c')
+
         except Exception as e:
             print(f"Error refreshing display: {e}")
             
@@ -994,10 +1103,17 @@ class Agent0UnifiedGUI:
         """Reset the system to initial state."""
         if messagebox.askyesno("Confirm Reset", "Are you sure you want to reset the system?"):
             self.add_activity("Resetting system to initial state...", 'info')
-            
+
+            # Preserve connection state
+            llm_connected = self.system_state.get('llm_connected', False)
+            demo_mode = self.system_state.get('demo_mode', True)
+            teacher_model = self.system_state.get('teacher_model', 'Not connected')
+            executor_model = self.system_state.get('executor_model', 'Not connected')
+
             # Reset system state
             self.system_state = {
                 'running': False,
+                'demo_mode': demo_mode,
                 'coordinator': None,
                 'teacher': None,
                 'executor': None,
@@ -1007,9 +1123,22 @@ class Agent0UnifiedGUI:
                 'active_domain': 'math',
                 'last_task': None,
                 'last_result': None,
-                'llm_connected': False
+                'llm_connected': llm_connected,
+                'teacher_model': teacher_model,
+                'executor_model': executor_model,
             }
-            
+
+            # Reset REAL stats tracking
+            self.real_stats = {
+                'domain_success': {'math': {'success': 0, 'total': 0},
+                                  'logic': {'success': 0, 'total': 0},
+                                  'code': {'success': 0, 'total': 0}},
+                'tool_usage': {'math_engine': 0, 'python': 0, 'shell': 0, 'test': 0},
+                'tool_success': {'math_engine': 0, 'python': 0, 'shell': 0, 'test': 0},
+                'total_time': 0.0,
+                'task_count': 0,
+            }
+
             self.evolution_data = {
                 'task_history': [],
                 'performance_trend': [],
@@ -1017,15 +1146,15 @@ class Agent0UnifiedGUI:
                 'domain_distribution': {'math': 0, 'logic': 0, 'code': 0},
                 'tool_usage': {'math_engine': 0, 'python': 0, 'shell': 0}
             }
-            
+
             # Clear all text widgets
-            for text_widget in [self.overview_activity, self.evolution_process, 
+            for text_widget in [self.overview_activity, self.evolution_process,
                               self.teacher_behavior, self.executor_behavior,
                               self.curriculum_generation, self.curriculum_history,
                               self.performance_progression, self.performance_trends,
                               self.reasoning_patterns, self.recent_calls]:
                 text_widget.delete(1.0, tk.END)
-            
+
             self.add_activity("System reset to initial state", 'info')
             self.refresh_display()
             self.status_indicator.config(text="🟢 SYSTEM READY", foreground='#27ae60')
@@ -1307,16 +1436,33 @@ class Agent0UnifiedGUI:
                     
                     if trajectory:
                         self.add_activity(f"Task completed. Result: {trajectory.result}", 'success' if trajectory.success else 'failure')
-                        
+
+                        # Calculate task duration from metrics
+                        task_duration = trajectory.metrics.get('llm_reason', 0.0) + trajectory.metrics.get('python', 0.0)
+
+                        # Record REAL stats from this task
+                        self.record_task_result(
+                            domain=task.domain,
+                            success=trajectory.success,
+                            tool_calls=trajectory.tool_calls,
+                            duration=task_duration
+                        )
+
                         # Update system state based on result
                         self.system_state['tasks_completed'] += 1
+
+                        # Calculate success rate from REAL domain stats
+                        total_success = sum(d['success'] for d in self.real_stats['domain_success'].values())
+                        total_tasks = sum(d['total'] for d in self.real_stats['domain_success'].values())
+                        if total_tasks > 0:
+                            self.system_state['success_rate'] = (total_success / total_tasks) * 100.0
+
+                        # Adjust difficulty based on result
                         if trajectory.success:
-                            self.system_state['success_rate'] = min(95.0, self.system_state['success_rate'] + 1.0)
                             self.system_state['current_difficulty'] = min(0.9, self.system_state['current_difficulty'] + 0.02)
                         else:
-                            self.system_state['success_rate'] = max(0.0, self.system_state['success_rate'] - 0.5)
                             self.system_state['current_difficulty'] = max(0.1, self.system_state['current_difficulty'] - 0.01)
-                        
+
                         # Log security event
                         self.security_logger.log_security_event(
                             event_type=SecurityEventType.INPUT_VALIDATION_FAILED if not trajectory.success else SecurityEventType.CODE_EXECUTION_BLOCKED,
@@ -1329,22 +1475,14 @@ class Agent0UnifiedGUI:
                                 'result': trajectory.result
                             }
                         )
-                        
+
                         # Add detailed activity
-                        self.add_activity(f"Task completed. Success: {trajectory.success}, Result: {trajectory.result}", 
+                        self.add_activity(f"Task completed. Success: {trajectory.success}, Result: {trajectory.result}",
                                         'success' if trajectory.success else 'failure')
-                        
-                        # Update evolution data
-                        self.evolution_data['task_history'].append({
-                            'task_id': task.task_id,
-                            'domain': task.domain,
-                            'difficulty': self.system_state['current_difficulty'],
-                            'success': trajectory.success
-                        })
-                        
+
+                        # Update evolution tracking
                         self.evolution_data['performance_trend'].append(self.system_state['success_rate'])
                         self.evolution_data['difficulty_progression'].append(self.system_state['current_difficulty'])
-                        self.evolution_data['domain_distribution'][task.domain] += 1
                         
                         # Add to agent behavior logs
                         if trajectory.success:
