@@ -298,6 +298,7 @@ class Agent0UnifiedGUI:
         self.create_curriculum_tab()
         self.create_performance_tab()
         self.create_tools_tab()
+        self.create_benchmarks_tab()  # Benchmark evaluation tab
         self.create_settings_tab()  # New Settings tab with Ollama config
         self.create_logs_tab()
         self.create_control_tab()
@@ -729,6 +730,185 @@ class Agent0UnifiedGUI:
         tools_frame.columnconfigure(1, weight=2)
         tools_frame.rowconfigure(0, weight=1)
         tools_frame.rowconfigure(1, weight=1)
+
+    def create_benchmarks_tab(self):
+        """Create the benchmarks and evaluation tab."""
+        benchmarks_frame = ttk.Frame(self.notebook)
+        self.notebook.add(benchmarks_frame, text="Benchmarks")
+
+        # Left panel - Benchmark Selection
+        selection_frame = ttk.LabelFrame(benchmarks_frame, text="Benchmark Selection", padding="10")
+        selection_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+
+        # Benchmark type selection
+        ttk.Label(selection_frame, text="Benchmark:", style='Metric.TLabel').grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.benchmark_type_var = tk.StringVar(value="MATH")
+        benchmark_combo = ttk.Combobox(selection_frame, textvariable=self.benchmark_type_var,
+                                       values=["MATH", "GSM8K", "Custom"], state='readonly', width=20)
+        benchmark_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5, pady=5)
+
+        # Sample limit
+        ttk.Label(selection_frame, text="Sample Limit:", style='Metric.TLabel').grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.benchmark_limit_var = tk.StringVar(value="50")
+        limit_entry = ttk.Entry(selection_frame, textvariable=self.benchmark_limit_var, width=10)
+        limit_entry.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+
+        # Difficulty filter
+        ttk.Label(selection_frame, text="Difficulty:", style='Metric.TLabel').grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.benchmark_difficulty_var = tk.StringVar(value="All")
+        difficulty_combo = ttk.Combobox(selection_frame, textvariable=self.benchmark_difficulty_var,
+                                        values=["All", "1", "2", "3", "4", "5"], state='readonly', width=10)
+        difficulty_combo.grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
+
+        # Run benchmark button
+        run_btn = ttk.Button(selection_frame, text="Run Benchmark",
+                            command=self.run_benchmark, style='Success.TButton')
+        run_btn.grid(row=3, column=0, columnspan=2, pady=15)
+
+        # Progress bar
+        self.benchmark_progress_var = tk.DoubleVar(value=0)
+        self.benchmark_progress = ttk.Progressbar(selection_frame, variable=self.benchmark_progress_var,
+                                                  maximum=100, length=200)
+        self.benchmark_progress.grid(row=4, column=0, columnspan=2, pady=5)
+
+        self.benchmark_status_label = ttk.Label(selection_frame, text="Ready to run", style='Metric.TLabel')
+        self.benchmark_status_label.grid(row=5, column=0, columnspan=2)
+
+        # Results frame
+        results_frame = ttk.LabelFrame(benchmarks_frame, text="Results", padding="10")
+        results_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+
+        self.benchmark_vars = {}
+        result_items = [
+            ('Total Samples', 'total_samples', '#3498db'),
+            ('Correct', 'correct', '#27ae60'),
+            ('Accuracy', 'accuracy', '#27ae60'),
+            ('Avg Latency', 'latency', '#f39c12'),
+        ]
+
+        for i, (label, key, color) in enumerate(result_items):
+            frame = ttk.Frame(results_frame)
+            frame.grid(row=i, column=0, sticky=(tk.W, tk.E), pady=2)
+
+            self.benchmark_vars[key] = tk.StringVar(value="-")
+
+            label_widget = ttk.Label(frame, text=f"{label}:", style='Metric.TLabel')
+            label_widget.grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+
+            value_widget = ttk.Label(frame, textvariable=self.benchmark_vars[key], style='Value.TLabel')
+            value_widget.grid(row=0, column=1, sticky=tk.W)
+
+        # Right panel - Detailed Results
+        details_frame = ttk.LabelFrame(benchmarks_frame, text="Detailed Results", padding="10")
+        details_frame.grid(row=0, column=1, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+
+        self.benchmark_details = scrolledtext.ScrolledText(details_frame, height=20, width=60, wrap=tk.WORD)
+        self.benchmark_details.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Configure text colors
+        self.benchmark_details.tag_configure('header', foreground='#2c3e50', font=('Arial', 11, 'bold'))
+        self.benchmark_details.tag_configure('correct', foreground='#27ae60', font=('Arial', 9))
+        self.benchmark_details.tag_configure('incorrect', foreground='#e74c3c', font=('Arial', 9))
+        self.benchmark_details.tag_configure('info', foreground='#3498db', font=('Arial', 9))
+
+        # Add initial message
+        self.benchmark_details.insert(tk.END, "Benchmark Evaluation\n", 'header')
+        self.benchmark_details.insert(tk.END, "=" * 40 + "\n\n", 'info')
+        self.benchmark_details.insert(tk.END, "Select a benchmark and click 'Run Benchmark' to start.\n\n", 'info')
+        self.benchmark_details.insert(tk.END, "Available benchmarks:\n", 'info')
+        self.benchmark_details.insert(tk.END, "  - MATH: Competition-level mathematics\n", 'info')
+        self.benchmark_details.insert(tk.END, "  - GSM8K: Grade school math word problems\n", 'info')
+        self.benchmark_details.insert(tk.END, "  - Custom: Load from ./data/benchmarks/custom.jsonl\n\n", 'info')
+        self.benchmark_details.insert(tk.END, "Note: Benchmarks require data files in ./data/benchmarks/\n", 'info')
+
+        # Grid configuration
+        benchmarks_frame.columnconfigure(0, weight=1)
+        benchmarks_frame.columnconfigure(1, weight=2)
+        benchmarks_frame.rowconfigure(0, weight=1)
+        benchmarks_frame.rowconfigure(1, weight=1)
+
+    def run_benchmark(self):
+        """Run the selected benchmark."""
+        def benchmark_thread():
+            try:
+                self.benchmark_status_label.config(text="Loading benchmark...")
+                self.benchmark_details.delete('1.0', tk.END)
+                self.benchmark_details.insert(tk.END, "Starting benchmark evaluation...\n\n", 'header')
+
+                benchmark_type = self.benchmark_type_var.get()
+                limit = int(self.benchmark_limit_var.get()) if self.benchmark_limit_var.get() else 50
+
+                # Import benchmark modules
+                from agent0.benchmarks import BenchmarkLoader, BenchmarkEvaluator
+
+                loader = BenchmarkLoader(Path("./data/benchmarks"))
+
+                # Load benchmark data
+                if benchmark_type == "MATH":
+                    difficulty = self.benchmark_difficulty_var.get()
+                    difficulties = None if difficulty == "All" else [difficulty]
+                    count = loader.load_math(difficulties=difficulties, limit=limit)
+                elif benchmark_type == "GSM8K":
+                    count = loader.load_gsm8k(limit=limit)
+                else:
+                    count = loader.load_custom(Path("./data/benchmarks/custom.jsonl"), limit=limit)
+
+                if count == 0:
+                    self.benchmark_details.insert(tk.END, "No samples loaded. Check data directory.\n", 'incorrect')
+                    self.benchmark_status_label.config(text="Error: No data")
+                    return
+
+                self.benchmark_details.insert(tk.END, f"Loaded {count} samples\n", 'info')
+                self.benchmark_status_label.config(text=f"Running... 0/{count}")
+
+                # Create solver function using the executor
+                def solver(problem):
+                    if not self.system_state['llm_connected']:
+                        return "[Demo mode - no LLM connected]"
+                    task = TaskSpec(task_id="bench", domain="math", prompt=problem, constraints=[], verifier=None)
+                    traj = self.executor.solve(task)
+                    return traj.result
+
+                # Run evaluation
+                evaluator = BenchmarkEvaluator()
+                correct = 0
+                total_latency = 0
+
+                for i, sample in enumerate(loader.samples):
+                    result = evaluator.evaluate_sample(sample, solver)
+
+                    if result.correct:
+                        correct += 1
+                        self.benchmark_details.insert(tk.END, f"✓ {sample.id}: {result.predicted}\n", 'correct')
+                    else:
+                        self.benchmark_details.insert(tk.END, f"✗ {sample.id}: {result.predicted} (expected: {result.expected})\n", 'incorrect')
+
+                    total_latency += result.latency_ms
+                    progress = ((i + 1) / count) * 100
+                    self.benchmark_progress_var.set(progress)
+                    self.benchmark_status_label.config(text=f"Running... {i+1}/{count}")
+                    self.benchmark_details.see(tk.END)
+
+                # Update results
+                accuracy = correct / count if count > 0 else 0
+                avg_latency = total_latency / count if count > 0 else 0
+
+                self.benchmark_vars['total_samples'].set(str(count))
+                self.benchmark_vars['correct'].set(str(correct))
+                self.benchmark_vars['accuracy'].set(f"{accuracy:.1%}")
+                self.benchmark_vars['latency'].set(f"{avg_latency:.1f}ms")
+
+                self.benchmark_details.insert(tk.END, f"\n{'='*40}\n", 'header')
+                self.benchmark_details.insert(tk.END, f"FINAL RESULTS: {accuracy:.1%} ({correct}/{count})\n", 'header')
+                self.benchmark_status_label.config(text="Complete!")
+
+            except Exception as e:
+                self.benchmark_details.insert(tk.END, f"\nError: {e}\n", 'incorrect')
+                self.benchmark_status_label.config(text="Error")
+
+        # Run in thread to avoid blocking GUI
+        thread = threading.Thread(target=benchmark_thread, daemon=True)
+        thread.start()
 
     def create_settings_tab(self):
         """Create the settings tab with Ollama configuration."""
