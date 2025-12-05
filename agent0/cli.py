@@ -23,6 +23,7 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import signal
 import sys
 import time
@@ -501,20 +502,32 @@ def cmd_backends(args):
     print_banner()
     print_section("LLM Backends")
 
-    from agent0.llm_backends import (
-        OllamaCLI, ClaudeCLI, OpenAICLI, GeminiCLI,
-        check_available_backends
-    )
+    # Check Ollama
+    ollama_available = False
+    try:
+        import requests
+        response = requests.get("http://127.0.0.1:11434/api/tags", timeout=5)
+        ollama_available = response.status_code == 200
+    except Exception:
+        pass
+
+    # Check Claude CLI
+    claude_available = shutil.which("claude") is not None
+
+    # Check OpenAI
+    openai_available = bool(os.environ.get("OPENAI_API_KEY"))
+
+    # Check Gemini
+    gemini_available = bool(os.environ.get("GOOGLE_API_KEY"))
 
     backends = {
-        "Ollama": OllamaCLI(),
-        "Claude CLI": ClaudeCLI(),
-        "OpenAI": OpenAICLI(),
-        "Gemini": GeminiCLI(),
+        "Ollama": ollama_available,
+        "Claude CLI": claude_available,
+        "OpenAI": openai_available,
+        "Gemini": gemini_available,
     }
 
-    for name, backend in backends.items():
-        available = backend.is_available()
+    for name, available in backends.items():
         if available:
             print_status(name, "Available", Colors.GREEN)
         else:
@@ -522,22 +535,14 @@ def cmd_backends(args):
 
     if args.test:
         print_section("Testing Backends")
-        test_prompt = "What is 2 + 2? Reply with just the number."
-
-        for name, backend in backends.items():
-            if backend.is_available():
-                print(f"  Testing {name}...", end=" ", flush=True)
-                response = backend.generate(test_prompt)
-                if response.success:
-                    print(f"{Colors.GREEN}OK{Colors.ENDC} ({response.latency_ms:.0f}ms): {response.content[:50]}")
-                else:
-                    print(f"{Colors.RED}FAIL{Colors.ENDC}: {response.error}")
+        print_warning("Use --test with full install (pip install -e .)")
 
     print_section("Configuration")
     print_info("Set these environment variables to enable backends:")
     print(f"  {Colors.DIM}OPENAI_API_KEY{Colors.ENDC}  - For OpenAI")
     print(f"  {Colors.DIM}GOOGLE_API_KEY{Colors.ENDC}  - For Gemini")
     print(f"  {Colors.DIM}ollama serve{Colors.ENDC}    - For Ollama (local)")
+    print(f"  {Colors.DIM}claude (CLI){Colors.ENDC}    - Install Claude CLI")
     print()
 
 
