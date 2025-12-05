@@ -1,0 +1,114 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent0"
+version = "0.2.0"
+description = "Self-Evolving AI Agents with Dual-Agent Co-Evolution"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Agent0 Team"}
+]
+keywords = [
+    "ai",
+    "agents",
+    "llm",
+    "reinforcement-learning",
+    "curriculum-learning",
+    "tool-augmented-reasoning",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "pyyaml>=6.0.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.6.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.28.0",
+    "sympy>=1.12",
+]
+
+[project.optional-dependencies]
+embeddings = [
+    "sentence-transformers>=2.2.0",
+    "faiss-cpu>=1.7.0",
+]
+training = [
+    "transformers>=4.35.0",
+    "datasets>=2.14.0",
+    "peft>=0.6.0",
+    "accelerate>=0.24.0",
+    "bitsandbytes>=0.41.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+]
+all = [
+    "agent0[embeddings,training,dev]",
+]
+
+[project.scripts]
+agent0 = "agent0.cli:main"
+agent0-monitor = "agent0.cli_monitor:main"
+agent0-mcp = "agent0.mcp_server:main"
+
+[project.urls]
+Homepage = "https://github.com/aiming-lab/Agent0"
+Documentation = "https://github.com/aiming-lab/Agent0#readme"
+Repository = "https://github.com/aiming-lab/Agent0.git"
+Issues = "https://github.com/aiming-lab/Agent0/issues"
+
+[tool.setuptools]
+packages = ["agent0"]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agent0*"]
+
+[tool.setuptools.package-data]
+agent0 = ["configs/*.yaml"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"

@@ -102,12 +102,16 @@ class StudentAgent:
 
         reward_stub = {"total": 0.0}
 
+        # Success is initially True if we found a candidate result
+        # Final verification happens in the coordinator
+        has_result = bool(candidate and candidate.strip())
+
         return Trajectory(
             task=task,
             messages=messages,
             tool_calls=tool_calls,
             result=result_text,
-            success=False,
+            success=has_result,
             reward=reward_stub,
             metrics=metrics,
         )

@@ -7,6 +7,7 @@ Integrated dashboard for agent co-evolution with direct LLM connection
 import sys
 import json
 import time
+import re
 import threading
 from pathlib import Path
 from datetime import datetime
@@ -37,16 +38,17 @@ from agent0.tools import math_engine, python_runner, shell_runner, test_runner
 
 class Agent0UnifiedGUI:
     """Unified GUI for Agent0 with all components in tabs."""
-    
+
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Agent0 Unified Dashboard - Agent Co-Evolution System")
         self.root.geometry("1400x900")
         self.root.configure(bg='#f0f0f0')
-        
-        # System state
+
+        # System state with real stats tracking
         self.system_state = {
             'running': False,
+            'demo_mode': True,  # True = simulated data, False = real data
             'coordinator': None,
             'teacher': None,
             'executor': None,
@@ -56,15 +58,28 @@ class Agent0UnifiedGUI:
             'active_domain': 'math',
             'last_task': None,
             'last_result': None,
-            'llm_connected': False
+            'llm_connected': False,
+            'teacher_model': 'Not connected',
+            'executor_model': 'Not connected',
         }
-        
+
+        # Real stats tracking (not simulated)
+        self.real_stats = {
+            'domain_success': {'math': {'success': 0, 'total': 0},
+                              'logic': {'success': 0, 'total': 0},
+                              'code': {'success': 0, 'total': 0}},
+            'tool_usage': {'math_engine': 0, 'python': 0, 'shell': 0, 'test': 0},
+            'tool_success': {'math_engine': 0, 'python': 0, 'shell': 0, 'test': 0},
+            'total_time': 0.0,
+            'task_count': 0,
+        }
+
         # Initialize core system components
         self.initialize_system()
 
         # Evolution tracking
         self.evolution_data = {
-            'interaction_history': [],
+            'task_history': [],
             'performance_trend': [],
             'difficulty_progression': [],
             'domain_distribution': {'math': 0, 'logic': 0, 'code': 0},
@@ -73,38 +88,103 @@ class Agent0UnifiedGUI:
         
         # Setup GUI
         self.setup_gui()
-        
+
+        # Auto-connect to Ollama after GUI is ready
+        self.root.after(500, self.auto_connect_ollama)
+
         # Start monitoring
         self.monitoring_active = True
         self.start_monitoring()
         
+    def check_ollama_connection(self, host: str = "http://127.0.0.1:11434") -> bool:
+        """Check if Ollama server is running and accessible."""
+        try:
+            import requests
+            response = requests.get(f"{host}/api/tags", timeout=5)
+            if response.status_code == 200:
+                models = response.json().get('models', [])
+                print(f"✅ Ollama connected. Available models: {[m.get('name', 'unknown') for m in models]}")
+                return True
+            return False
+        except Exception as e:
+            print(f"❌ Ollama connection failed: {e}")
+            return False
+
+    def auto_connect_ollama(self):
+        """Automatically connect to Ollama on startup."""
+        try:
+            self.log_to_settings("Auto-connecting to Ollama...")
+            host = self.ollama_host_var.get()
+
+            if self.check_ollama_connection(host):
+                self.ollama_status_label.config(text="🟢 Connected", fg='green')
+                self.system_state['llm_connected'] = True
+                self.system_state['demo_mode'] = False
+                self.log_to_settings("✅ Auto-connected successfully!")
+                self.refresh_ollama_models()
+
+                # Update header connection indicator
+                self.update_connection_indicator(True)
+            else:
+                self.ollama_status_label.config(text="🔴 Not Connected", fg='red')
+                self.system_state['llm_connected'] = False
+                self.system_state['demo_mode'] = True
+                self.log_to_settings("⚠️ Auto-connect failed. Running in DEMO mode.")
+                self.log_to_settings("   Start Ollama with: ollama serve")
+
+                # Update header connection indicator
+                self.update_connection_indicator(False)
+
+        except Exception as e:
+            self.log_to_settings(f"❌ Auto-connect error: {e}")
+            self.update_connection_indicator(False)
+
+    def update_connection_indicator(self, connected: bool):
+        """Update the header connection status indicator."""
+        if connected:
+            self.status_indicator.config(text="🟢 CONNECTED", foreground='#27ae60')
+            self.coevolution_label.config(text="🟢 READY TO EVOLVE", background='#27ae60')
+        else:
+            self.status_indicator.config(text="🟡 DEMO MODE", foreground='#f39c12')
+            self.coevolution_label.config(text="🟡 DEMO MODE - Connect Ollama", background='#f39c12')
+
     def initialize_system(self):
         """Initialize the core Agent0 system with direct LLM connection."""
         try:
             print("Initializing Agent0 system with direct LLM connection...")
-            
+
             # Load configuration
             from agent0.config import load_config
             config = load_config("agent0/configs/3070ti.yaml")
-            
+
             # Validate configuration
             from agent0.validation.config_validator import validate_config
             validate_config(config)
-            
+
             print("✅ Configuration loaded and validated")
-            
+
+            # Check Ollama connection first
+            ollama_host = config.get("models", {}).get("teacher", {}).get("host", "http://127.0.0.1:11434")
+            if self.check_ollama_connection(ollama_host):
+                self.system_state['llm_connected'] = True
+                self.system_state['demo_mode'] = False
+            else:
+                print("⚠️ Running in DEMO MODE - Ollama not available")
+                self.system_state['llm_connected'] = False
+                self.system_state['demo_mode'] = True
+
             # Initialize security logger
             self.log_dir = Path("runs")
             self.security_logger = SecurityLogger(self.log_dir, enable_monitoring=True)
-            
+
             print("✅ Security logger initialized")
-            
+
             # Initialize coordinator with direct LLM connection
             print("Initializing coordinator...")
             self.coordinator = Coordinator(config)
-            
+
             print("✅ Coordinator initialized successfully")
-            
+
             # Extract agent configurations
             teacher_config = config["models"]["teacher"]
             executor_config = config["models"]["student"]
@@ -178,10 +258,15 @@ class Agent0UnifiedGUI:
         self.status_indicator.grid(row=0, column=1, sticky=tk.E, padx=(0, 20))
         
         # Subtitle
-        subtitle_label = ttk.Label(header_frame, text="Self-evolving agents through teacher-executor co-evolution with tool integration", 
+        subtitle_label = ttk.Label(header_frame, text="Self-evolving agents through teacher-executor co-evolution with tool integration",
                                   style='Section.TLabel', font=('Arial', 10))
         subtitle_label.grid(row=1, column=0, columnspan=2, sticky=tk.W)
-        
+
+        # Co-evolution status label
+        self.coevolution_label = tk.Label(header_frame, text="🟡 CO-EVOLUTION: INITIALIZING",
+                                         font=('Arial', 9, 'bold'), bg='#f39c12', fg='white', padx=8, pady=2)
+        self.coevolution_label.grid(row=1, column=2, sticky=tk.E, padx=(10, 0))
+
         # Control buttons
         control_frame = ttk.Frame(header_frame, style='Main.TFrame')
         control_frame.grid(row=0, column=2, sticky=tk.E, padx=(20, 0))
@@ -213,6 +298,8 @@ class Agent0UnifiedGUI:
         self.create_curriculum_tab()
         self.create_performance_tab()
         self.create_tools_tab()
+        self.create_benchmarks_tab()  # Benchmark evaluation tab
+        self.create_settings_tab()  # New Settings tab with Ollama config
         self.create_logs_tab()
         self.create_control_tab()
         
@@ -643,7 +730,545 @@ class Agent0UnifiedGUI:
         tools_frame.columnconfigure(1, weight=2)
         tools_frame.rowconfigure(0, weight=1)
         tools_frame.rowconfigure(1, weight=1)
-        
+
+    def create_benchmarks_tab(self):
+        """Create the benchmarks and evaluation tab."""
+        benchmarks_frame = ttk.Frame(self.notebook)
+        self.notebook.add(benchmarks_frame, text="Benchmarks")
+
+        # Left panel - Benchmark Selection
+        selection_frame = ttk.LabelFrame(benchmarks_frame, text="Benchmark Selection", padding="10")
+        selection_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+
+        # Benchmark type selection
+        ttk.Label(selection_frame, text="Benchmark:", style='Metric.TLabel').grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.benchmark_type_var = tk.StringVar(value="MATH")
+        benchmark_combo = ttk.Combobox(selection_frame, textvariable=self.benchmark_type_var,
+                                       values=["MATH", "GSM8K", "Custom"], state='readonly', width=20)
+        benchmark_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5, pady=5)
+
+        # Sample limit
+        ttk.Label(selection_frame, text="Sample Limit:", style='Metric.TLabel').grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.benchmark_limit_var = tk.StringVar(value="50")
+        limit_entry = ttk.Entry(selection_frame, textvariable=self.benchmark_limit_var, width=10)
+        limit_entry.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+
+        # Difficulty filter
+        ttk.Label(selection_frame, text="Difficulty:", style='Metric.TLabel').grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.benchmark_difficulty_var = tk.StringVar(value="All")
+        difficulty_combo = ttk.Combobox(selection_frame, textvariable=self.benchmark_difficulty_var,
+                                        values=["All", "1", "2", "3", "4", "5"], state='readonly', width=10)
+        difficulty_combo.grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
+
+        # Run benchmark button
+        run_btn = ttk.Button(selection_frame, text="Run Benchmark",
+                            command=self.run_benchmark, style='Success.TButton')
+        run_btn.grid(row=3, column=0, columnspan=2, pady=15)
+
+        # Progress bar
+        self.benchmark_progress_var = tk.DoubleVar(value=0)
+        self.benchmark_progress = ttk.Progressbar(selection_frame, variable=self.benchmark_progress_var,
+                                                  maximum=100, length=200)
+        self.benchmark_progress.grid(row=4, column=0, columnspan=2, pady=5)
+
+        self.benchmark_status_label = ttk.Label(selection_frame, text="Ready to run", style='Metric.TLabel')
+        self.benchmark_status_label.grid(row=5, column=0, columnspan=2)
+
+        # Results frame
+        results_frame = ttk.LabelFrame(benchmarks_frame, text="Results", padding="10")
+        results_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+
+        self.benchmark_vars = {}
+        result_items = [
+            ('Total Samples', 'total_samples', '#3498db'),
+            ('Correct', 'correct', '#27ae60'),
+            ('Accuracy', 'accuracy', '#27ae60'),
+            ('Avg Latency', 'latency', '#f39c12'),
+        ]
+
+        for i, (label, key, color) in enumerate(result_items):
+            frame = ttk.Frame(results_frame)
+            frame.grid(row=i, column=0, sticky=(tk.W, tk.E), pady=2)
+
+            self.benchmark_vars[key] = tk.StringVar(value="-")
+
+            label_widget = ttk.Label(frame, text=f"{label}:", style='Metric.TLabel')
+            label_widget.grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+
+            value_widget = ttk.Label(frame, textvariable=self.benchmark_vars[key], style='Value.TLabel')
+            value_widget.grid(row=0, column=1, sticky=tk.W)
+
+        # Right panel - Detailed Results
+        details_frame = ttk.LabelFrame(benchmarks_frame, text="Detailed Results", padding="10")
+        details_frame.grid(row=0, column=1, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+
+        self.benchmark_details = scrolledtext.ScrolledText(details_frame, height=20, width=60, wrap=tk.WORD)
+        self.benchmark_details.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Configure text colors
+        self.benchmark_details.tag_configure('header', foreground='#2c3e50', font=('Arial', 11, 'bold'))
+        self.benchmark_details.tag_configure('correct', foreground='#27ae60', font=('Arial', 9))
+        self.benchmark_details.tag_configure('incorrect', foreground='#e74c3c', font=('Arial', 9))
+        self.benchmark_details.tag_configure('info', foreground='#3498db', font=('Arial', 9))
+
+        # Add initial message
+        self.benchmark_details.insert(tk.END, "Benchmark Evaluation\n", 'header')
+        self.benchmark_details.insert(tk.END, "=" * 40 + "\n\n", 'info')
+        self.benchmark_details.insert(tk.END, "Select a benchmark and click 'Run Benchmark' to start.\n\n", 'info')
+        self.benchmark_details.insert(tk.END, "Available benchmarks:\n", 'info')
+        self.benchmark_details.insert(tk.END, "  - MATH: Competition-level mathematics\n", 'info')
+        self.benchmark_details.insert(tk.END, "  - GSM8K: Grade school math word problems\n", 'info')
+        self.benchmark_details.insert(tk.END, "  - Custom: Load from ./data/benchmarks/custom.jsonl\n\n", 'info')
+        self.benchmark_details.insert(tk.END, "Note: Benchmarks require data files in ./data/benchmarks/\n", 'info')
+
+        # Grid configuration
+        benchmarks_frame.columnconfigure(0, weight=1)
+        benchmarks_frame.columnconfigure(1, weight=2)
+        benchmarks_frame.rowconfigure(0, weight=1)
+        benchmarks_frame.rowconfigure(1, weight=1)
+
+    def run_benchmark(self):
+        """Run the selected benchmark."""
+        def benchmark_thread():
+            try:
+                self.benchmark_status_label.config(text="Loading benchmark...")
+                self.benchmark_details.delete('1.0', tk.END)
+                self.benchmark_details.insert(tk.END, "Starting benchmark evaluation...\n\n", 'header')
+
+                benchmark_type = self.benchmark_type_var.get()
+                limit = int(self.benchmark_limit_var.get()) if self.benchmark_limit_var.get() else 50
+
+                # Import benchmark modules
+                from agent0.benchmarks import BenchmarkLoader, BenchmarkEvaluator
+
+                loader = BenchmarkLoader(Path("./data/benchmarks"))
+
+                # Load benchmark data
+                if benchmark_type == "MATH":
+                    difficulty = self.benchmark_difficulty_var.get()
+                    difficulties = None if difficulty == "All" else [difficulty]
+                    count = loader.load_math(difficulties=difficulties, limit=limit)
+                elif benchmark_type == "GSM8K":
+                    count = loader.load_gsm8k(limit=limit)
+                else:
+                    count = loader.load_custom(Path("./data/benchmarks/custom.jsonl"), limit=limit)
+
+                if count == 0:
+                    self.benchmark_details.insert(tk.END, "No samples loaded. Check data directory.\n", 'incorrect')
+                    self.benchmark_status_label.config(text="Error: No data")
+                    return
+
+                self.benchmark_details.insert(tk.END, f"Loaded {count} samples\n", 'info')
+                self.benchmark_status_label.config(text=f"Running... 0/{count}")
+
+                # Create solver function using the executor
+                def solver(problem):
+                    if not self.system_state['llm_connected']:
+                        return "[Demo mode - no LLM connected]"
+                    task = TaskSpec(task_id="bench", domain="math", prompt=problem, constraints=[], verifier=None)
+                    traj = self.executor.solve(task)
+                    return traj.result
+
+                # Run evaluation
+                evaluator = BenchmarkEvaluator()
+                correct = 0
+                total_latency = 0
+
+                for i, sample in enumerate(loader.samples):
+                    result = evaluator.evaluate_sample(sample, solver)
+
+                    if result.correct:
+                        correct += 1
+                        self.benchmark_details.insert(tk.END, f"✓ {sample.id}: {result.predicted}\n", 'correct')
+                    else:
+                        self.benchmark_details.insert(tk.END, f"✗ {sample.id}: {result.predicted} (expected: {result.expected})\n", 'incorrect')
+
+                    total_latency += result.latency_ms
+                    progress = ((i + 1) / count) * 100
+                    self.benchmark_progress_var.set(progress)
+                    self.benchmark_status_label.config(text=f"Running... {i+1}/{count}")
+                    self.benchmark_details.see(tk.END)
+
+                # Update results
+                accuracy = correct / count if count > 0 else 0
+                avg_latency = total_latency / count if count > 0 else 0
+
+                self.benchmark_vars['total_samples'].set(str(count))
+                self.benchmark_vars['correct'].set(str(correct))
+                self.benchmark_vars['accuracy'].set(f"{accuracy:.1%}")
+                self.benchmark_vars['latency'].set(f"{avg_latency:.1f}ms")
+
+                self.benchmark_details.insert(tk.END, f"\n{'='*40}\n", 'header')
+                self.benchmark_details.insert(tk.END, f"FINAL RESULTS: {accuracy:.1%} ({correct}/{count})\n", 'header')
+                self.benchmark_status_label.config(text="Complete!")
+
+            except Exception as e:
+                self.benchmark_details.insert(tk.END, f"\nError: {e}\n", 'incorrect')
+                self.benchmark_status_label.config(text="Error")
+
+        # Run in thread to avoid blocking GUI
+        thread = threading.Thread(target=benchmark_thread, daemon=True)
+        thread.start()
+
+    def create_settings_tab(self):
+        """Create the settings tab with Ollama configuration."""
+        settings_frame = ttk.Frame(self.notebook)
+        self.notebook.add(settings_frame, text="⚙️ Settings")
+
+        # === Ollama Connection Section ===
+        ollama_frame = ttk.LabelFrame(settings_frame, text="🦙 Ollama Connection", padding="15")
+        ollama_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N), padx=10, pady=10)
+
+        # Connection status
+        status_row = ttk.Frame(ollama_frame)
+        status_row.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        ttk.Label(status_row, text="Status:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W)
+        self.ollama_status_label = tk.Label(status_row, text="⚪ Not Connected",
+                                           font=('Arial', 10, 'bold'), fg='gray')
+        self.ollama_status_label.grid(row=0, column=1, sticky=tk.W, padx=(10, 0))
+
+        # Host configuration
+        ttk.Label(ollama_frame, text="Ollama Host:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.ollama_host_var = tk.StringVar(value="http://127.0.0.1:11434")
+        self.ollama_host_entry = ttk.Entry(ollama_frame, textvariable=self.ollama_host_var, width=40)
+        self.ollama_host_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=10, pady=5)
+
+        connect_btn = ttk.Button(ollama_frame, text="🔌 Connect", command=self.connect_ollama, style='Success.TButton')
+        connect_btn.grid(row=1, column=2, padx=5, pady=5)
+
+        # Model selection section
+        models_frame = ttk.LabelFrame(ollama_frame, text="Model Selection", padding="10")
+        models_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(15, 5))
+
+        # Teacher model
+        ttk.Label(models_frame, text="Teacher Model:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.teacher_model_var = tk.StringVar(value="qwen2.5:3b")
+        self.teacher_model_combo = ttk.Combobox(models_frame, textvariable=self.teacher_model_var,
+                                                state='readonly', width=30)
+        self.teacher_model_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=10, pady=5)
+        self.teacher_model_combo['values'] = ['(No models loaded)']
+
+        # Student/Executor model
+        ttk.Label(models_frame, text="Executor Model:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.executor_model_var = tk.StringVar(value="qwen2.5:7b")
+        self.executor_model_combo = ttk.Combobox(models_frame, textvariable=self.executor_model_var,
+                                                 state='readonly', width=30)
+        self.executor_model_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=10, pady=5)
+        self.executor_model_combo['values'] = ['(No models loaded)']
+
+        # Refresh and Apply buttons
+        btn_frame = ttk.Frame(models_frame)
+        btn_frame.grid(row=2, column=0, columnspan=2, pady=(10, 0))
+
+        ttk.Button(btn_frame, text="🔄 Refresh Models", command=self.refresh_ollama_models).grid(row=0, column=0, padx=5)
+        ttk.Button(btn_frame, text="✅ Apply Models", command=self.apply_model_selection, style='Success.TButton').grid(row=0, column=1, padx=5)
+
+        # Available models list
+        models_list_frame = ttk.LabelFrame(ollama_frame, text="Available Models", padding="10")
+        models_list_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(15, 5))
+
+        self.models_listbox = tk.Listbox(models_list_frame, height=6, width=50, font=('Consolas', 10))
+        self.models_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        models_scrollbar = ttk.Scrollbar(models_list_frame, orient=tk.VERTICAL, command=self.models_listbox.yview)
+        models_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.models_listbox.config(yscrollcommand=models_scrollbar.set)
+
+        # Model info
+        self.model_info_label = ttk.Label(models_list_frame, text="Click 'Refresh Models' to load available models",
+                                         font=('Arial', 9), foreground='gray')
+        self.model_info_label.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(5, 0))
+
+        # === Model Parameters Section ===
+        params_frame = ttk.LabelFrame(settings_frame, text="🎛️ Model Parameters", padding="15")
+        params_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N), padx=10, pady=10)
+
+        # Temperature
+        ttk.Label(params_frame, text="Temperature:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.temperature_var = tk.DoubleVar(value=0.7)
+        temp_scale = ttk.Scale(params_frame, from_=0.0, to=2.0, variable=self.temperature_var,
+                              orient=tk.HORIZONTAL, length=200)
+        temp_scale.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=10)
+        self.temp_value_label = ttk.Label(params_frame, text="0.7")
+        self.temp_value_label.grid(row=0, column=2)
+        temp_scale.configure(command=lambda v: self.temp_value_label.config(text=f"{float(v):.2f}"))
+
+        # Top P
+        ttk.Label(params_frame, text="Top P:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.top_p_var = tk.DoubleVar(value=0.9)
+        top_p_scale = ttk.Scale(params_frame, from_=0.0, to=1.0, variable=self.top_p_var,
+                               orient=tk.HORIZONTAL, length=200)
+        top_p_scale.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=10)
+        self.top_p_value_label = ttk.Label(params_frame, text="0.9")
+        self.top_p_value_label.grid(row=1, column=2)
+        top_p_scale.configure(command=lambda v: self.top_p_value_label.config(text=f"{float(v):.2f}"))
+
+        # Max Tokens
+        ttk.Label(params_frame, text="Max Tokens:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.max_tokens_var = tk.IntVar(value=512)
+        tokens_spinbox = ttk.Spinbox(params_frame, from_=64, to=4096, textvariable=self.max_tokens_var, width=10)
+        tokens_spinbox.grid(row=2, column=1, sticky=tk.W, padx=10)
+
+        # Timeout
+        ttk.Label(params_frame, text="Timeout (s):").grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.timeout_var = tk.IntVar(value=120)
+        timeout_spinbox = ttk.Spinbox(params_frame, from_=10, to=600, textvariable=self.timeout_var, width=10)
+        timeout_spinbox.grid(row=3, column=1, sticky=tk.W, padx=10)
+
+        # === Quick Actions Section ===
+        actions_frame = ttk.LabelFrame(settings_frame, text="⚡ Quick Actions", padding="15")
+        actions_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), padx=10, pady=10)
+
+        actions = [
+            ("🔄 Reconnect Ollama", self.reconnect_ollama),
+            ("🧪 Test Connection", self.test_ollama_connection),
+            ("📋 Copy Config", self.copy_ollama_config),
+            ("💾 Save Settings", self.save_settings),
+        ]
+
+        for i, (text, cmd) in enumerate(actions):
+            ttk.Button(actions_frame, text=text, command=cmd, width=20).grid(row=0, column=i, padx=10, pady=5)
+
+        # === Connection Log Section ===
+        log_frame = ttk.LabelFrame(settings_frame, text="📜 Connection Log", padding="10")
+        log_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
+
+        self.settings_log = scrolledtext.ScrolledText(log_frame, height=8, width=80, wrap=tk.WORD,
+                                                      font=('Consolas', 9))
+        self.settings_log.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.log_to_settings("Settings panel initialized. Click 'Connect' to connect to Ollama.")
+
+        # Configure grid weights
+        settings_frame.columnconfigure(0, weight=1)
+        settings_frame.columnconfigure(1, weight=1)
+        settings_frame.rowconfigure(2, weight=1)
+        ollama_frame.columnconfigure(1, weight=1)
+        models_list_frame.columnconfigure(0, weight=1)
+        models_list_frame.rowconfigure(0, weight=1)
+        log_frame.columnconfigure(0, weight=1)
+        log_frame.rowconfigure(0, weight=1)
+
+    def log_to_settings(self, message: str):
+        """Add a log message to the settings log."""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.settings_log.insert(tk.END, f"[{timestamp}] {message}\n")
+        self.settings_log.see(tk.END)
+
+    def connect_ollama(self):
+        """Connect to Ollama server."""
+        host = self.ollama_host_var.get().strip()
+        self.log_to_settings(f"Connecting to Ollama at {host}...")
+
+        if self.check_ollama_connection(host):
+            self.ollama_status_label.config(text="🟢 Connected", fg='green')
+            self.system_state['llm_connected'] = True
+            self.system_state['demo_mode'] = False
+            self.log_to_settings("✅ Successfully connected to Ollama!")
+            self.refresh_ollama_models()
+            self.update_connection_indicator(True)
+        else:
+            self.ollama_status_label.config(text="🔴 Connection Failed", fg='red')
+            self.system_state['llm_connected'] = False
+            self.system_state['demo_mode'] = True
+            self.log_to_settings("❌ Failed to connect to Ollama. Make sure it's running.")
+            self.update_connection_indicator(False)
+            messagebox.showerror("Connection Failed",
+                               f"Could not connect to Ollama at {host}\n\n"
+                               "Make sure Ollama is running:\n"
+                               "  1. Install: https://ollama.ai\n"
+                               "  2. Run: ollama serve\n"
+                               "  3. Pull a model: ollama pull qwen2.5:3b")
+
+    def refresh_ollama_models(self):
+        """Refresh the list of available Ollama models."""
+        host = self.ollama_host_var.get().strip()
+        self.log_to_settings("Fetching available models...")
+
+        try:
+            import requests
+            response = requests.get(f"{host}/api/tags", timeout=5)
+            if response.status_code == 200:
+                models_data = response.json().get('models', [])
+                model_names = [m.get('name', 'unknown') for m in models_data]
+
+                # Update comboboxes
+                self.teacher_model_combo['values'] = model_names if model_names else ['(No models available)']
+                self.executor_model_combo['values'] = model_names if model_names else ['(No models available)']
+
+                # Update listbox with details
+                self.models_listbox.delete(0, tk.END)
+                for model in models_data:
+                    name = model.get('name', 'unknown')
+                    size = model.get('size', 0)
+                    size_gb = size / (1024**3) if size else 0
+                    self.models_listbox.insert(tk.END, f"{name} ({size_gb:.1f} GB)")
+
+                self.model_info_label.config(text=f"Found {len(model_names)} models")
+                self.log_to_settings(f"✅ Found {len(model_names)} models: {', '.join(model_names[:5])}{'...' if len(model_names) > 5 else ''}")
+
+                # Auto-select first model if current selection is invalid
+                if model_names:
+                    if self.teacher_model_var.get() not in model_names:
+                        self.teacher_model_var.set(model_names[0])
+                    if self.executor_model_var.get() not in model_names:
+                        self.executor_model_var.set(model_names[0] if len(model_names) == 1 else model_names[-1])
+            else:
+                self.log_to_settings(f"❌ Failed to fetch models: HTTP {response.status_code}")
+        except Exception as e:
+            self.log_to_settings(f"❌ Error fetching models: {e}")
+            self.models_listbox.delete(0, tk.END)
+            self.models_listbox.insert(tk.END, "(Error fetching models)")
+
+    def apply_model_selection(self):
+        """Apply the selected models to the system."""
+        teacher = self.teacher_model_var.get()
+        executor = self.executor_model_var.get()
+
+        if '(No models' in teacher or '(No models' in executor:
+            messagebox.showwarning("No Models", "Please connect to Ollama and refresh models first.")
+            return
+
+        self.log_to_settings(f"Applying models - Teacher: {teacher}, Executor: {executor}")
+
+        try:
+            # Update system state
+            self.system_state['teacher_model'] = teacher
+            self.system_state['executor_model'] = executor
+
+            # Update the configuration
+            host = self.ollama_host_var.get().strip()
+
+            # Reinitialize agents with new models
+            teacher_config = {
+                'backend': 'ollama',
+                'model': teacher,
+                'host': host,
+                'temperature': self.temperature_var.get(),
+                'top_p': self.top_p_var.get(),
+            }
+            executor_config = {
+                'backend': 'ollama',
+                'model': executor,
+                'host': host,
+                'temperature': self.temperature_var.get(),
+                'top_p': self.top_p_var.get(),
+            }
+
+            # Reinitialize agents
+            self.teacher = TeacherAgent(teacher_config)
+            self.executor = StudentAgent(executor_config)
+
+            self.log_to_settings(f"✅ Models applied successfully!")
+            self.log_to_settings(f"   Teacher: {teacher}")
+            self.log_to_settings(f"   Executor: {executor}")
+
+            messagebox.showinfo("Models Applied",
+                              f"Models updated successfully!\n\n"
+                              f"Teacher: {teacher}\n"
+                              f"Executor: {executor}")
+
+            # Refresh the display
+            self.refresh_display()
+
+        except Exception as e:
+            self.log_to_settings(f"❌ Error applying models: {e}")
+            messagebox.showerror("Error", f"Failed to apply models: {e}")
+
+    def reconnect_ollama(self):
+        """Reconnect to Ollama server."""
+        self.log_to_settings("Reconnecting to Ollama...")
+        self.connect_ollama()
+
+    def test_ollama_connection(self):
+        """Test the Ollama connection with a simple prompt."""
+        host = self.ollama_host_var.get().strip()
+        model = self.teacher_model_var.get()
+
+        if '(No models' in model:
+            messagebox.showwarning("No Model", "Please select a model first.")
+            return
+
+        self.log_to_settings(f"Testing connection with {model}...")
+
+        try:
+            import requests
+            response = requests.post(
+                f"{host}/api/generate",
+                json={
+                    "model": model,
+                    "prompt": "Say 'Hello' in one word.",
+                    "stream": False,
+                    "options": {"num_predict": 10}
+                },
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                result = response.json().get('response', '')
+                self.log_to_settings(f"✅ Test successful! Response: {result.strip()[:50]}")
+                messagebox.showinfo("Test Successful", f"Ollama responded: {result.strip()[:100]}")
+            else:
+                self.log_to_settings(f"❌ Test failed: HTTP {response.status_code}")
+                messagebox.showerror("Test Failed", f"HTTP Error: {response.status_code}")
+
+        except Exception as e:
+            self.log_to_settings(f"❌ Test error: {e}")
+            messagebox.showerror("Test Failed", f"Error: {e}")
+
+    def copy_ollama_config(self):
+        """Copy Ollama configuration to clipboard."""
+        config = f"""# Ollama Configuration
+Host: {self.ollama_host_var.get()}
+Teacher Model: {self.teacher_model_var.get()}
+Executor Model: {self.executor_model_var.get()}
+Temperature: {self.temperature_var.get():.2f}
+Top P: {self.top_p_var.get():.2f}
+Max Tokens: {self.max_tokens_var.get()}
+Timeout: {self.timeout_var.get()}s
+"""
+        self.root.clipboard_clear()
+        self.root.clipboard_append(config)
+        self.log_to_settings("📋 Configuration copied to clipboard")
+        messagebox.showinfo("Copied", "Configuration copied to clipboard!")
+
+    def save_settings(self):
+        """Save current settings to config file."""
+        self.log_to_settings("Saving settings...")
+
+        try:
+            import yaml
+            config_path = Path("agent0/configs/3070ti.yaml")
+
+            # Load existing config
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+
+            # Update with new values
+            config['models']['teacher']['model'] = self.teacher_model_var.get()
+            config['models']['teacher']['host'] = self.ollama_host_var.get()
+            config['models']['teacher']['temperature'] = self.temperature_var.get()
+            config['models']['teacher']['top_p'] = self.top_p_var.get()
+
+            config['models']['student']['model'] = self.executor_model_var.get()
+            config['models']['student']['host'] = self.ollama_host_var.get()
+            config['models']['student']['temperature'] = self.temperature_var.get()
+            config['models']['student']['top_p'] = self.top_p_var.get()
+
+            config['resources']['max_tokens_per_task'] = self.max_tokens_var.get()
+            config['tooling']['timeout_seconds'] = self.timeout_var.get()
+
+            # Save config
+            with open(config_path, 'w') as f:
+                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+            self.log_to_settings("✅ Settings saved to agent0/configs/3070ti.yaml")
+            messagebox.showinfo("Saved", "Settings saved successfully!")
+
+        except Exception as e:
+            self.log_to_settings(f"❌ Error saving settings: {e}")
+            messagebox.showerror("Error", f"Failed to save settings: {e}")
+
     def create_logs_tab(self):
         """Create the logs viewing tab."""
         logs_frame = ttk.Frame(self.notebook)
@@ -799,39 +1424,89 @@ class Agent0UnifiedGUI:
         """Monitor the system in background."""
         while self.monitoring_active:
             try:
-                # Simulate system monitoring
-                self.simulate_system_data()
-                
-                # Update GUI
+                # Only update GUI, don't generate fake data automatically
                 self.root.after(0, self.refresh_display)
-                
+
             except Exception as e:
                 print(f"Error monitoring system: {e}")
-            
+
             time.sleep(2)  # Update every 2 seconds
-            
+
+    def record_task_result(self, domain: str, success: bool, tool_calls: list, duration: float):
+        """Record real task results for stats tracking."""
+        # Update domain stats
+        self.real_stats['domain_success'][domain]['total'] += 1
+        if success:
+            self.real_stats['domain_success'][domain]['success'] += 1
+
+        # Update tool usage from actual tool calls
+        for call in tool_calls:
+            tool_name = call.get('tool', '')
+            if tool_name in self.real_stats['tool_usage']:
+                self.real_stats['tool_usage'][tool_name] += 1
+                if call.get('status') == 'ok':
+                    self.real_stats['tool_success'][tool_name] += 1
+
+        # Update timing stats
+        self.real_stats['total_time'] += duration
+        self.real_stats['task_count'] += 1
+
+        # Update evolution data
+        self.evolution_data['task_history'].append({
+            'task_id': f"task_{self.system_state['tasks_completed']}",
+            'domain': domain,
+            'difficulty': self.system_state['current_difficulty'],
+            'success': success
+        })
+        self.evolution_data['domain_distribution'][domain] += 1
+
+    def get_domain_success_rate(self, domain: str) -> float:
+        """Get real success rate for a domain."""
+        stats = self.real_stats['domain_success'].get(domain, {'success': 0, 'total': 0})
+        if stats['total'] == 0:
+            return 0.0
+        return (stats['success'] / stats['total']) * 100.0
+
+    def get_tool_efficiency(self) -> float:
+        """Calculate real tool efficiency from actual usage."""
+        total_usage = sum(self.real_stats['tool_usage'].values())
+        total_success = sum(self.real_stats['tool_success'].values())
+        if total_usage == 0:
+            return 0.0
+        return (total_success / total_usage) * 100.0
+
+    def get_avg_task_time(self) -> float:
+        """Get average task completion time."""
+        if self.real_stats['task_count'] == 0:
+            return 0.0
+        return self.real_stats['total_time'] / self.real_stats['task_count']
+
     def simulate_system_data(self):
-        """Simulate system data for demonstration."""
-        # Update system state
+        """Generate demo data - only called when explicitly stepping in demo mode."""
+        if not self.system_state.get('demo_mode', True):
+            return  # Don't simulate if we have real data
+
+        # Update system state for demo
         self.system_state['tasks_completed'] += 1
         self.system_state['success_rate'] = min(95.0, self.system_state['success_rate'] + 0.5)
         self.system_state['current_difficulty'] = min(0.9, self.system_state['current_difficulty'] + 0.01)
-        
+
         # Simulate domain rotation
         domains = ['math', 'logic', 'code']
         current_index = domains.index(self.system_state['active_domain'])
         if self.system_state['tasks_completed'] % 10 == 0:
             self.system_state['active_domain'] = domains[(current_index + 1) % len(domains)]
-        
-        # Add activity
-        self.add_activity(f"Teacher generated {self.system_state['active_domain']} task at difficulty {self.system_state['current_difficulty']:.3f}", 'teacher')
-        self.add_activity(f"Executor attempted task with tool integration", 'executor')
-        
-        if self.system_state['tasks_completed'] % 3 == 0:
-            self.add_activity(f"Task completed successfully! Success rate: {self.system_state['success_rate']:.1f}%", 'success')
+
+        # Add demo activity
+        self.add_activity(f"[DEMO] Teacher generated {self.system_state['active_domain']} task", 'teacher')
+        self.add_activity(f"[DEMO] Executor attempted task", 'executor')
+
+        success = self.system_state['tasks_completed'] % 3 == 0
+        if success:
+            self.add_activity(f"[DEMO] Task completed successfully!", 'success')
         else:
-            self.add_activity(f"Task failed. Learning from experience...", 'failure')
-        
+            self.add_activity(f"[DEMO] Task failed.", 'failure')
+
         # Update evolution data
         self.evolution_data['task_history'].append({
             'task_id': f"task_{self.system_state['tasks_completed']}",
@@ -845,72 +1520,93 @@ class Agent0UnifiedGUI:
         self.evolution_data['domain_distribution'][self.system_state['active_domain']] += 1
         
     def refresh_display(self):
-        """Refresh the display with current data."""
+        """Refresh the display with current data (real or demo)."""
         try:
+            is_demo = self.system_state.get('demo_mode', True)
+            mode_prefix = "[DEMO] " if is_demo else ""
+
             # Update overview
-            self.overview_vars['teacher_model'].set(f"{self.system_state['teacher_model']}")
-            self.overview_vars['executor_model'].set(f"{self.system_state['executor_model']}")
+            self.overview_vars['teacher_model'].set(f"{mode_prefix}{self.system_state['teacher_model']}")
+            self.overview_vars['executor_model'].set(f"{mode_prefix}{self.system_state['executor_model']}")
             self.overview_vars['tasks_completed'].set(f"{self.system_state['tasks_completed']}")
             self.overview_vars['success_rate'].set(f"{self.system_state['success_rate']:.1f}%")
             self.overview_vars['current_difficulty'].set(f"{self.system_state['current_difficulty']:.3f}")
             self.overview_vars['active_domain'].set(f"{self.system_state['active_domain']}")
-            
+
             # Update evolution
             self.evolution_vars['coevolution_cycles'].set(f"{len(self.evolution_data['task_history'])}")
-            self.evolution_vars['success_trend'].set(f"{self.system_state['success_rate']:.1f}% ↑")
-            self.evolution_vars['difficulty_progress'].set(f"{self.system_state['current_difficulty']:.3f} ↑")
+            self.evolution_vars['success_trend'].set(f"{self.system_state['success_rate']:.1f}%")
+            self.evolution_vars['difficulty_progress'].set(f"{self.system_state['current_difficulty']:.3f}")
             self.evolution_vars['learning_velocity'].set(f"{(self.system_state['success_rate'] / max(1, len(self.evolution_data['task_history'])) * 10):.2f}")
             self.evolution_vars['domain_dist'].set(f"Math: {self.evolution_data['domain_distribution']['math']}, Logic: {self.evolution_data['domain_distribution']['logic']}, Code: {self.evolution_data['domain_distribution']['code']}")
-            self.evolution_vars['tool_efficiency'].set(f"{85.0:.1f}%")  # Simulated
-            
+
+            # Use real tool efficiency when available
+            tool_eff = self.get_tool_efficiency() if not is_demo else 0.0
+            self.evolution_vars['tool_efficiency'].set(f"{tool_eff:.1f}%" if tool_eff > 0 else "N/A")
+
             # Update agents
             self.teacher_vars['teacher_model'].set(f"{self.system_state['teacher_model']}")
             self.teacher_vars['teacher_tasks'].set(f"{self.system_state['tasks_completed']}")
             self.teacher_vars['teacher_difficulty'].set(f"{self.system_state['current_difficulty']:.3f}")
             self.teacher_vars['teacher_domain'].set(f"{self.system_state['active_domain']}")
             self.teacher_vars['teacher_adaptation'].set(f"{min(100.0, self.system_state['success_rate']):.1f}%")
-            
+
             self.executor_vars['executor_model'].set(f"{self.system_state['executor_model']}")
             self.executor_vars['executor_tasks'].set(f"{self.system_state['tasks_completed']}")
             self.executor_vars['executor_success'].set(f"{self.system_state['success_rate']:.1f}%")
-            self.executor_vars['executor_tools'].set(f"{self.system_state['tasks_completed'] * 0.7:.0f}")  # Simulated
+
+            # Use real tool usage count
+            total_tools = sum(self.real_stats['tool_usage'].values())
+            self.executor_vars['executor_tools'].set(f"{total_tools}")
             self.executor_vars['executor_learning'].set(f"{min(100.0, self.system_state['success_rate']):.1f}%")
-            
+
             # Update curriculum
             self.curriculum_vars['curriculum_domain'].set(f"{self.system_state['active_domain']}")
             self.curriculum_vars['curriculum_difficulty'].set(f"{self.system_state['current_difficulty']:.3f}")
-            self.curriculum_vars['curriculum_frontier'].set(f"0.1")  # Configured value
-            self.curriculum_vars['curriculum_target'].set(f"0.5")  # Configured value
-            self.curriculum_vars['curriculum_domains'].set(f"math, logic, code")  # Configured value
-            
-            # Update performance
+            self.curriculum_vars['curriculum_frontier'].set(f"0.1")
+            self.curriculum_vars['curriculum_target'].set(f"0.5")
+            self.curriculum_vars['curriculum_domains'].set(f"math, logic, code")
+
+            # Update performance with REAL domain success rates
             self.performance_vars['overall_success'].set(f"{self.system_state['success_rate']:.1f}%")
-            self.performance_vars['math_success'].set(f"{self.system_state['success_rate'] * 0.9:.1f}%")  # Simulated
-            self.performance_vars['logic_success'].set(f"{self.system_state['success_rate'] * 0.85:.1f}%")  # Simulated
-            self.performance_vars['code_success'].set(f"{self.system_state['success_rate'] * 0.8:.1f}%")  # Simulated
-            self.performance_vars['avg_time'].set(f"{(10 - self.system_state['current_difficulty'] * 5):.1f}s")  # Simulated
-            self.performance_vars['tool_efficiency'].set(f"{85.0:.1f}%")  # Simulated
-            
-            # Update tools
-            self.tools_vars['math_usage'].set(f"{self.system_state['tasks_completed'] * 0.4:.0f}")  # Simulated
-            self.tools_vars['python_usage'].set(f"{self.system_state['tasks_completed'] * 0.6:.0f}")  # Simulated
-            self.tools_vars['shell_usage'].set(f"{self.system_state['tasks_completed'] * 0.1:.0f}")  # Simulated
-            self.tools_vars['test_usage'].set(f"{self.system_state['tasks_completed'] * 0.2:.0f}")  # Simulated
-            self.tools_vars['tools_success'].set(f"{self.system_state['success_rate']:.1f}%")
-            self.tools_vars['tools_time'].set(f"{(8 - self.system_state['current_difficulty'] * 3):.1f}s")  # Simulated
-            
+
+            math_rate = self.get_domain_success_rate('math')
+            logic_rate = self.get_domain_success_rate('logic')
+            code_rate = self.get_domain_success_rate('code')
+
+            self.performance_vars['math_success'].set(f"{math_rate:.1f}%" if math_rate > 0 else "N/A")
+            self.performance_vars['logic_success'].set(f"{logic_rate:.1f}%" if logic_rate > 0 else "N/A")
+            self.performance_vars['code_success'].set(f"{code_rate:.1f}%" if code_rate > 0 else "N/A")
+
+            # Use real average time
+            avg_time = self.get_avg_task_time()
+            self.performance_vars['avg_time'].set(f"{avg_time:.1f}s" if avg_time > 0 else "N/A")
+            self.performance_vars['tool_efficiency'].set(f"{tool_eff:.1f}%" if tool_eff > 0 else "N/A")
+
+            # Update tools with REAL usage counts
+            self.tools_vars['math_usage'].set(f"{self.real_stats['tool_usage']['math_engine']}")
+            self.tools_vars['python_usage'].set(f"{self.real_stats['tool_usage']['python']}")
+            self.tools_vars['shell_usage'].set(f"{self.real_stats['tool_usage']['shell']}")
+            self.tools_vars['test_usage'].set(f"{self.real_stats['tool_usage']['test']}")
+            self.tools_vars['tools_success'].set(f"{tool_eff:.1f}%" if tool_eff > 0 else "N/A")
+            self.tools_vars['tools_time'].set(f"{avg_time:.1f}s" if avg_time > 0 else "N/A")
+
             # Update status bar
-            self.evolution_status_var.set(f"Evolution: Active - {self.system_state['tasks_completed']} tasks")
+            status_mode = "DEMO" if is_demo else "LIVE"
+            llm_status = "Connected" if self.system_state['llm_connected'] else "Not Connected"
+            self.evolution_status_var.set(f"[{status_mode}] Tasks: {self.system_state['tasks_completed']}")
+            self.llm_status_var.set(f"LLM: {llm_status}")
             self.last_update_var.set(f"Last update: {datetime.now().strftime('%H:%M:%S')}")
-            
+
             # Update co-evolution status
             if self.system_state['success_rate'] > 80:
                 self.coevolution_label.config(text="🟢 CO-EVOLUTION: EXCELLENT", background='#27ae60')
             elif self.system_state['success_rate'] > 60:
                 self.coevolution_label.config(text="🟡 CO-EVOLUTION: GOOD", background='#f39c12')
             else:
-                self.coevolution_label.config(text="🔴 CO-EVOLUTION: NEEDS ATTENTION", background='#e74c3c')
-            
+                label_text = "🔴 CO-EVOLUTION: DEMO MODE" if is_demo else "🔴 CO-EVOLUTION: NEEDS ATTENTION"
+                self.coevolution_label.config(text=label_text, background='#e74c3c')
+
         except Exception as e:
             print(f"Error refreshing display: {e}")
             
@@ -971,17 +1667,34 @@ class Agent0UnifiedGUI:
             self.system_state['running'] = False
             self.add_activity("Evolution paused.", 'info')
             self.evolution_status_var.set("Evolution: Paused")
-            self.status_indicator.config(text=" PAUSED", foreground='#f39c12')
+            self.status_indicator.config(text="⏸️ PAUSED", foreground='#f39c12')
             self.progress_bar.stop()
-        
+
+    def emergency_stop(self):
+        """Emergency stop - immediately halt all operations."""
+        self.system_state['running'] = False
+        self.monitoring_active = False
+        self.add_activity("🚨 EMERGENCY STOP activated!", 'failure')
+        self.evolution_status_var.set("Evolution: EMERGENCY STOP")
+        self.status_indicator.config(text="🛑 EMERGENCY STOP", foreground='#e74c3c')
+        self.progress_bar.stop()
+        messagebox.showwarning("Emergency Stop", "All operations have been halted immediately.")
+
     def reset_system(self):
         """Reset the system to initial state."""
         if messagebox.askyesno("Confirm Reset", "Are you sure you want to reset the system?"):
             self.add_activity("Resetting system to initial state...", 'info')
-            
+
+            # Preserve connection state
+            llm_connected = self.system_state.get('llm_connected', False)
+            demo_mode = self.system_state.get('demo_mode', True)
+            teacher_model = self.system_state.get('teacher_model', 'Not connected')
+            executor_model = self.system_state.get('executor_model', 'Not connected')
+
             # Reset system state
             self.system_state = {
                 'running': False,
+                'demo_mode': demo_mode,
                 'coordinator': None,
                 'teacher': None,
                 'executor': None,
@@ -991,25 +1704,38 @@ class Agent0UnifiedGUI:
                 'active_domain': 'math',
                 'last_task': None,
                 'last_result': None,
-                'llm_connected': False
+                'llm_connected': llm_connected,
+                'teacher_model': teacher_model,
+                'executor_model': executor_model,
             }
-            
+
+            # Reset REAL stats tracking
+            self.real_stats = {
+                'domain_success': {'math': {'success': 0, 'total': 0},
+                                  'logic': {'success': 0, 'total': 0},
+                                  'code': {'success': 0, 'total': 0}},
+                'tool_usage': {'math_engine': 0, 'python': 0, 'shell': 0, 'test': 0},
+                'tool_success': {'math_engine': 0, 'python': 0, 'shell': 0, 'test': 0},
+                'total_time': 0.0,
+                'task_count': 0,
+            }
+
             self.evolution_data = {
-                'interaction_history': [],
+                'task_history': [],
                 'performance_trend': [],
                 'difficulty_progression': [],
                 'domain_distribution': {'math': 0, 'logic': 0, 'code': 0},
                 'tool_usage': {'math_engine': 0, 'python': 0, 'shell': 0}
             }
-            
+
             # Clear all text widgets
-            for text_widget in [self.overview_activity, self.evolution_process, 
+            for text_widget in [self.overview_activity, self.evolution_process,
                               self.teacher_behavior, self.executor_behavior,
                               self.curriculum_generation, self.curriculum_history,
                               self.performance_progression, self.performance_trends,
                               self.reasoning_patterns, self.recent_calls]:
                 text_widget.delete(1.0, tk.END)
-            
+
             self.add_activity("System reset to initial state", 'info')
             self.refresh_display()
             self.status_indicator.config(text="🟢 SYSTEM READY", foreground='#27ae60')
@@ -1260,171 +1986,7 @@ class Agent0UnifiedGUI:
                 
         except Exception as e:
             print(f"Error refreshing file list: {e}")
-            
-    def start_monitoring(self):
-        """Start monitoring the system."""
-        self.monitoring_active = True
-        self.start_monitoring_thread()
-        
-    def start_monitoring_thread(self):
-        """Start the monitoring thread."""
-        self.monitoring_thread = threading.Thread(target=self.monitor_system, daemon=True)
-        self.monitoring_thread.start()
-        
-    def monitor_system(self):
-        """Monitor the system in background."""
-        while self.monitoring_active:
-            try:
-                # Update system state
-                self.simulate_system_data()
-                
-                # Update GUI
-                self.root.after(0, self.refresh_display)
-                
-            except Exception as e:
-                print(f"Error monitoring system: {e}")
-            
-            time.sleep(2)  # Update every 2 seconds
-            
-    def simulate_system_data(self):
-        """Simulate system data for demonstration."""
-        # Update system state
-        self.system_state['tasks_completed'] += 1
-        self.system_state['success_rate'] = min(95.0, self.system_state['success_rate'] + 0.5)
-        self.system_state['current_difficulty'] = min(0.9, self.system_state['current_difficulty'] + 0.01)
-        
-        # Simulate domain rotation
-        domains = ['math', 'logic', 'code']
-        current_index = domains.index(self.system_state['active_domain'])
-        if self.system_state['tasks_completed'] % 10 == 0:
-            self.system_state['active_domain'] = domains[(current_index + 1) % len(domains)]
-        
-        # Add activity
-        self.add_activity(f"Teacher generated {self.system_state['active_domain']} task at difficulty {self.system_state['current_difficulty']:.3f}", 'teacher')
-        self.add_activity(f"Executor attempted task with tool integration", 'executor')
-        
-        if self.system_state['tasks_completed'] % 3 == 0:
-            self.add_activity(f"Task completed successfully! Success rate: {self.system_state['success_rate']:.1f}%", 'success')
-        else:
-            self.add_activity(f"Task failed. Learning from experience...", 'failure')
-        
-        # Update evolution data
-        self.evolution_data['task_history'].append({
-            'task_id': f"task_{self.system_state['tasks_completed']}",
-            'domain': self.system_state['active_domain'],
-            'difficulty': self.system_state['current_difficulty'],
-            'success': self.system_state['tasks_completed'] % 3 == 0
-        })
-        
-        self.evolution_data['performance_trend'].append(self.system_state['success_rate'])
-        self.evolution_data['difficulty_progression'].append(self.system_state['current_difficulty'])
-        self.evolution_data['domain_distribution'][self.system_state['active_domain']] += 1
-        
-    def add_activity(self, message, tag='info'):
-        """Add activity to the activity logs."""
-        try:
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            
-            # Add to overview activity
-            self.overview_activity.insert(tk.END, f"[{timestamp}] {message}\n", tag)
-            self.overview_activity.see(tk.END)
-            
-            # Add to evolution process
-            self.evolution_process.insert(tk.END, f"[{timestamp}] {message}\n", tag)
-            self.evolution_process.see(tk.END)
-            
-            # Add to teacher behavior
-            if 'teacher' in tag:
-                self.teacher_behavior.insert(tk.END, f"[{timestamp}] {message}\n", 'task_generation')
-                self.teacher_behavior.see(tk.END)
-            
-            # Add to executor behavior
-            if 'executor' in tag:
-                self.executor_behavior.insert(tk.END, f"[{timestamp}] {message}\n", 'solution_attempt')
-                self.executor_behavior.see(tk.END)
-            
-            # Keep only last 100 lines
-            for text_widget in [self.overview_activity, self.evolution_process, 
-                              self.teacher_behavior, self.executor_behavior,
-                              self.curriculum_generation, self.curriculum_history,
-                              self.performance_progression, self.performance_trends,
-                              self.reasoning_patterns, self.recent_calls]:
-                lines = text_widget.get(1.0, tk.END).count('\n')
-                if lines > 100:
-                    text_widget.delete(1.0, f"{lines-100}.0")
-                    
-        except Exception as e:
-            print(f"Error adding activity: {e}")
-            
-    def start_evolution(self):
-        """Start the evolution process."""
-        if not self.system_state['running']:
-            self.system_state['running'] = True
-            self.add_activity("Starting agent evolution process...", 'info')
-            self.evolution_status_var.set("Evolution: Starting...")
-            self.status_indicator.config(text="🟡 EVOLVING", foreground='#f39c12')
-            self.progress_bar.start()
-            
-            # Start background evolution
-            self.evolution_thread = threading.Thread(target=self.run_evolution_loop, daemon=True)
-            self.evolution_thread.start()
-            
-    def stop_evolution(self):
-        """Stop the evolution process."""
-        if self.system_state['running']:
-            self.system_state['running'] = False
-            self.add_activity("Stopping agent evolution...", 'info')
-            self.evolution_status_var.set("Evolution: Stopping...")
-            self.status_indicator.config(text="🔴 STOPPED", foreground='#e74c3c')
-            self.progress_bar.stop()
-            
-    def step_evolution(self):
-        """Step forward in evolution."""
-        self.add_activity("Stepping evolution forward...", 'info')
-        # Force an update
-        self.simulate_system_data()
-        self.refresh_display()
-        
-    def reset_system(self):
-        """Reset the system to initial state."""
-        if messagebox.askyesno("Confirm Reset", "Are you sure you want to reset the system?"):
-            self.add_activity("Resetting system to initial state...", 'info')
-            
-            # Reset system state
-            self.system_state = {
-                'running': False,
-                'coordinator': None,
-                'teacher': None,
-                'executor': None,
-                'tasks_completed': 0,
-                'success_rate': 0.0,
-                'current_difficulty': 0.5,
-                'active_domain': 'math',
-                'last_task': None,
-                'last_result': None,
-                'llm_connected': False
-            }
-            
-            self.evolution_data = {
-                'interaction_history': [],
-                'performance_trend': [],
-                'difficulty_progression': [],
-                'domain_distribution': {'math': 0, 'logic': 0, 'code': 0},
-                'tool_usage': {'math_engine': 0, 'python': 0, 'shell': 0}
-            }
-            
-            # Clear all text widgets
-            for text_widget in [self.overview_activity, self.evolution_process, 
-                              self.teacher_behavior, self.executor_behavior,
-                              self.curriculum_generation, self.curriculum_history,
-                              self.performance_progression, self.performance_trends,
-                              self.reasoning_patterns, self.recent_calls]:
-                text_widget.delete(1.0, tk.END)
-            
-            self.add_activity("System reset to initial state", 'info')
-            self.refresh_display()
-            self.status_indicator.config(text="🟢 SYSTEM READY", foreground='#27ae60')
-            
+
     def run_evolution_loop(self):
         """Run the main evolution loop with actual LLM integration."""
         try:
@@ -1455,16 +2017,33 @@ class Agent0UnifiedGUI:
                     
                     if trajectory:
                         self.add_activity(f"Task completed. Result: {trajectory.result}", 'success' if trajectory.success else 'failure')
-                        
+
+                        # Calculate task duration from metrics
+                        task_duration = trajectory.metrics.get('llm_reason', 0.0) + trajectory.metrics.get('python', 0.0)
+
+                        # Record REAL stats from this task
+                        self.record_task_result(
+                            domain=task.domain,
+                            success=trajectory.success,
+                            tool_calls=trajectory.tool_calls,
+                            duration=task_duration
+                        )
+
                         # Update system state based on result
                         self.system_state['tasks_completed'] += 1
+
+                        # Calculate success rate from REAL domain stats
+                        total_success = sum(d['success'] for d in self.real_stats['domain_success'].values())
+                        total_tasks = sum(d['total'] for d in self.real_stats['domain_success'].values())
+                        if total_tasks > 0:
+                            self.system_state['success_rate'] = (total_success / total_tasks) * 100.0
+
+                        # Adjust difficulty based on result
                         if trajectory.success:
-                            self.system_state['success_rate'] = min(95.0, self.system_state['success_rate'] + 1.0)
                             self.system_state['current_difficulty'] = min(0.9, self.system_state['current_difficulty'] + 0.02)
                         else:
-                            self.system_state['success_rate'] = max(0.0, self.system_state['success_rate'] - 0.5)
                             self.system_state['current_difficulty'] = max(0.1, self.system_state['current_difficulty'] - 0.01)
-                        
+
                         # Log security event
                         self.security_logger.log_security_event(
                             event_type=SecurityEventType.INPUT_VALIDATION_FAILED if not trajectory.success else SecurityEventType.CODE_EXECUTION_BLOCKED,
@@ -1477,22 +2056,14 @@ class Agent0UnifiedGUI:
                                 'result': trajectory.result
                             }
                         )
-                        
+
                         # Add detailed activity
-                        self.add_activity(f"Task completed. Success: {trajectory.success}, Result: {trajectory.result}", 
+                        self.add_activity(f"Task completed. Success: {trajectory.success}, Result: {trajectory.result}",
                                         'success' if trajectory.success else 'failure')
-                        
-                        # Update evolution data
-                        self.evolution_data['task_history'].append({
-                            'task_id': task.task_id,
-                            'domain': task.domain,
-                            'difficulty': self.system_state['current_difficulty'],
-                            'success': trajectory.success
-                        })
-                        
+
+                        # Update evolution tracking
                         self.evolution_data['performance_trend'].append(self.system_state['success_rate'])
                         self.evolution_data['difficulty_progression'].append(self.system_state['current_difficulty'])
-                        self.evolution_data['domain_distribution'][task.domain] += 1
                         
                         # Add to agent behavior logs
                         if trajectory.success:
@@ -1525,10 +2096,7 @@ class Agent0UnifiedGUI:
         try:
             # Set up window close handler
             self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-            
-            # Initialize system
-            self.initialize_system()
-            
+
             # Start the GUI
             print("Starting Agent0 Unified GUI...")
             self.root.mainloop()
