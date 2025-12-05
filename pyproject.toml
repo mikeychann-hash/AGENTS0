@@ -69,6 +69,7 @@ all = [
 [project.scripts]
 agent0 = "agent0.cli:main"
 agent0-monitor = "agent0.cli_monitor:main"
+agent0-mcp = "agent0.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/aiming-lab/Agent0"

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "agent0": {
+      "command": "python",
+      "args": ["-m", "agent0.mcp_server"],
+      "cwd": "/home/user/AGENTS0",
+      "env": {}
+    }
+  }
+}

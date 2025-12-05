@@ -496,6 +496,61 @@ def cmd_monitor(args):
     monitor.run(args.refresh)
 
 
+def cmd_backends(args):
+    """Check available LLM backends."""
+    print_banner()
+    print_section("LLM Backends")
+
+    from agent0.llm_backends import (
+        OllamaCLI, ClaudeCLI, OpenAICLI, GeminiCLI,
+        check_available_backends
+    )
+
+    backends = {
+        "Ollama": OllamaCLI(),
+        "Claude CLI": ClaudeCLI(),
+        "OpenAI": OpenAICLI(),
+        "Gemini": GeminiCLI(),
+    }
+
+    for name, backend in backends.items():
+        available = backend.is_available()
+        if available:
+            print_status(name, "Available", Colors.GREEN)
+        else:
+            print_status(name, "Not available", Colors.DIM)
+
+    if args.test:
+        print_section("Testing Backends")
+        test_prompt = "What is 2 + 2? Reply with just the number."
+
+        for name, backend in backends.items():
+            if backend.is_available():
+                print(f"  Testing {name}...", end=" ", flush=True)
+                response = backend.generate(test_prompt)
+                if response.success:
+                    print(f"{Colors.GREEN}OK{Colors.ENDC} ({response.latency_ms:.0f}ms): {response.content[:50]}")
+                else:
+                    print(f"{Colors.RED}FAIL{Colors.ENDC}: {response.error}")
+
+    print_section("Configuration")
+    print_info("Set these environment variables to enable backends:")
+    print(f"  {Colors.DIM}OPENAI_API_KEY{Colors.ENDC}  - For OpenAI")
+    print(f"  {Colors.DIM}GOOGLE_API_KEY{Colors.ENDC}  - For Gemini")
+    print(f"  {Colors.DIM}ollama serve{Colors.ENDC}    - For Ollama (local)")
+    print()
+
+
+def cmd_mcp(args):
+    """Start MCP server."""
+    print(f"Starting Agent0 MCP server ({args.transport} transport)...", file=sys.stderr)
+
+    from agent0.mcp_server import main as mcp_main
+    import sys
+    sys.argv = ['mcp_server', '--transport', args.transport]
+    mcp_main()
+
+
 def cmd_chat(args):
     """Interactive chat mode."""
     print_banner()
@@ -639,6 +694,16 @@ Examples:
     monitor_parser.add_argument('--refresh', type=float, default=1.0,
                                help='Refresh rate in seconds')
 
+    # backends command
+    backends_parser = subparsers.add_parser('backends', help='Check available LLM backends')
+    backends_parser.add_argument('--test', action='store_true',
+                                help='Test each backend with a simple prompt')
+
+    # mcp command
+    mcp_parser = subparsers.add_parser('mcp', help='Start MCP server')
+    mcp_parser.add_argument('--transport', choices=['stdio'], default='stdio',
+                           help='Transport type')
+
     args = parser.parse_args()
 
     if args.no_color:
@@ -659,6 +724,10 @@ Examples:
         cmd_chat(args)
     elif args.command == 'monitor':
         cmd_monitor(args)
+    elif args.command == 'backends':
+        cmd_backends(args)
+    elif args.command == 'mcp':
+        cmd_mcp(args)
     else:
         # Default: show status
         parser.print_help()
