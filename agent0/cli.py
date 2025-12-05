@@ -557,13 +557,13 @@ def cmd_mcp(args):
 
 
 def cmd_chat(args):
-    """Interactive chat mode."""
+    """Interactive chat mode with slash commands."""
     print_banner()
 
     config = load_config(Path(args.config))
 
     from agent0.agents.multi_turn import MultiTurnAgent
-    from agent0.tasks.schema import TaskSpec
+    from agent0.commands import CommandHandler
 
     # Check connection
     connected, _ = check_ollama_connection()
@@ -579,7 +579,10 @@ def cmd_chat(args):
 
     conv = agent.start_conversation("chat-session")
 
-    print(f"{Colors.DIM}Type 'quit' or 'exit' to end, 'clear' to reset{Colors.ENDC}\n")
+    # Initialize command handler
+    cmd_handler = CommandHandler(config, conv)
+
+    print(f"{Colors.DIM}Type /help for commands, or just chat naturally{Colors.ENDC}\n")
 
     while True:
         try:
@@ -588,15 +591,44 @@ def cmd_chat(args):
             if not user_input:
                 continue
 
-            if user_input.lower() in ('quit', 'exit', 'q'):
-                print(f"\n{Colors.DIM}Goodbye!{Colors.ENDC}")
-                break
+            # Handle slash commands
+            if user_input.startswith("/"):
+                result = cmd_handler.execute(user_input)
+                print(f"\n{result.output}\n")
 
-            if user_input.lower() == 'clear':
-                conv = agent.start_conversation("chat-session")
-                print(f"{Colors.DIM}Conversation cleared{Colors.ENDC}\n")
+                # Handle special actions
+                if result.action == "quit":
+                    break
+                elif result.action == "clear":
+                    conv = agent.start_conversation("chat-session")
+                    cmd_handler.conversation = conv
+                elif result.action == "switch_model":
+                    # Reinitialize agent with new model
+                    new_model = result.data.get("model")
+                    config["models"]["student"]["model"] = new_model
+                    agent = MultiTurnAgent(
+                        config["models"]["student"],
+                        max_turns=args.max_turns,
+                        enable_reflection=not args.no_reflection,
+                    )
+                    conv = agent.start_conversation("chat-session")
+                    cmd_handler.conversation = conv
+                elif result.action == "solve":
+                    # Solve problem directly
+                    problem = result.data.get("problem", "")
+                    if problem:
+                        response = agent.generate_response(conv, f"Solve: {problem}")
+                        print(f"{Colors.GREEN}Agent:{Colors.ENDC} {response}\n")
+                elif result.action == "load":
+                    # Load conversation
+                    history = result.data.get("history", [])
+                    for turn in history:
+                        conv.history.append(turn)
+                    print(f"{Colors.GREEN}Loaded {len(history)} turns{Colors.ENDC}\n")
+
                 continue
 
+            # Regular chat
             response = agent.generate_response(conv, user_input)
             print(f"\n{Colors.GREEN}Agent:{Colors.ENDC} {response}\n")
 
