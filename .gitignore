@@ -58,11 +58,20 @@ dmypy.json
 .env.local
 
 # Agent0 specific
-runs/
+runs/logs/*.json
+runs/*.log
 checkpoints/
 eval_results/
 sandbox/
 data/benchmarks/
+*.jsonl
+trajectories/
+
+# Temporary and backup files
+*.tmp
+*.bak
+*.backup
+*~
 
 # OS
 .DS_Store
